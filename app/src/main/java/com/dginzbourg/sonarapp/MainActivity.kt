@@ -1,6 +1,5 @@
 package com.dginzbourg.sonarapp
 
-import android.media.AudioFormat
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
@@ -10,6 +9,8 @@ import android.media.AudioFormat.CHANNEL_OUT_MONO
 import android.media.AudioManager
 import android.media.AudioFormat.ENCODING_PCM_8BIT
 import android.widget.EditText
+import kotlin.math.ceil
+import kotlin.math.sin
 
 
 class MainActivity : AppCompatActivity() {
@@ -29,7 +30,7 @@ class MainActivity : AppCompatActivity() {
         val mBufferSize = AudioTrack.getMinBufferSize(
             ONE_SECOND,
             CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_8BIT
+            ENCODING_PCM_8BIT
         )
 
         val mAudioTrack = AudioTrack(
@@ -42,10 +43,10 @@ class MainActivity : AppCompatActivity() {
 
         // Sine wave
         val mDuration = duration * ONE_SECOND
-        val mSound = DoubleArray(Math.ceil(mDuration).toInt())
-        val mBuffer = ShortArray(Math.ceil(mDuration).toInt())
+        val mSound = DoubleArray(ceil(mDuration).toInt())
+        val mBuffer = ShortArray(ceil(mDuration).toInt())
         for (i in mSound.indices) {
-            mSound[i] = Math.sin(2.0 * Math.PI * i.toDouble() / (ONE_SECOND / frequency))
+            mSound[i] = sin(2.0 * Math.PI * i.toDouble() / (ONE_SECOND / frequency))
             mBuffer[i] = (mSound[i] * java.lang.Short.MAX_VALUE).toShort()
         }
 
