@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
             CHANNEL_OUT_MONO,
             ENCODING_PCM_8BIT
         )
-
+        // https://developer.android.com/reference/android/media/AudioTrack.Builder.html
         val mAudioTrack = AudioTrack(
             AudioManager.STREAM_MUSIC,
             ONE_SECOND,
