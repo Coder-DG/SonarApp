@@ -35,11 +35,11 @@ class MainActivity : AppCompatActivity() {
         if (!lock.tryLock()) {
             return
         }
-        val mBufferSize = AudioTrack.getMinBufferSize(
+        val mBufferSize = ceil(AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
             CHANNEL_OUT_MONO,
             ENCODING_PCM_16BIT
-        )
+        ) / 2.0).toInt() // The size returned is in bytes, we use Shorts (2b each)
         val mAudioPlayer = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
