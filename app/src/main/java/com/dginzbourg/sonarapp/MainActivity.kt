@@ -11,11 +11,12 @@ import kotlin.math.ceil
 import kotlin.math.sin
 import android.media.AudioAttributes
 import android.media.AudioFormat
-
-
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 
 
 class MainActivity : AppCompatActivity() {
+    var lock: Lock = ReentrantLock()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,13 +24,19 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.button).setOnClickListener {
             val duration = findViewById<EditText>(R.id.duration).text.toString().toDouble()
             val frequency = findViewById<EditText>(R.id.frequency).text.toString().toDouble()
-            playSound(frequency, duration)
+            Thread {
+                playSound(frequency, duration)
+            }.start()
         }
     }
 
     private fun playSound(frequency: Double, duration: Double) {
+        // Ignore other button calls during the time this plays sound
+        if (!lock.tryLock()) {
+            return
+        }
         val mBufferSize = AudioTrack.getMinBufferSize(
-            DEFAULT_SAMPLE_RATE,
+            SAMPLE_RATE,
             CHANNEL_OUT_MONO,
             ENCODING_PCM_16BIT
         )
@@ -43,33 +50,32 @@ class MainActivity : AppCompatActivity() {
             .setAudioFormat(
                 AudioFormat.Builder()
                     .setEncoding(ENCODING_PCM_16BIT)
-                    .setSampleRate(DEFAULT_SAMPLE_RATE)
+                    .setSampleRate(SAMPLE_RATE)
                     .setChannelMask(CHANNEL_OUT_MONO)
                     .build()
             )
             .setBufferSizeInBytes(mBufferSize)
             .build()
 
-        // Sine wave
-        val mDuration = duration * ONE_SECOND
-        val mSound = DoubleArray(ceil(mDuration).toInt())
-        val mBuffer = ShortArray(ceil(mDuration).toInt())
-        for (i in mSound.indices) {
-            mSound[i] = sin(2.0 * Math.PI * i.toDouble() / (ONE_SECOND / frequency))
-            mBuffer[i] = (mSound[i] * java.lang.Short.MAX_VALUE).toShort()
+        val mBuffer = ShortArray(ceil(duration * SAMPLE_RATE).toInt())
+        for (i in mBuffer.indices) {
+            mBuffer[i] = (
+                    sin(frequency * 2 * Math.PI * i / SAMPLE_RATE) // This is the percentage of the max value
+                            * java.lang.Short.MAX_VALUE).toShort()
         }
 
         mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
         mAudioPlayer.play()
 
-        mAudioPlayer.write(mBuffer, 0, mSound.size)
+        mAudioPlayer.write(mBuffer, 0, mBuffer.size)
         mAudioPlayer.stop()
         mAudioPlayer.release()
+
+        lock.unlock()
 
     }
 
     companion object {
-        const val ONE_SECOND = 44100
-        const val DEFAULT_SAMPLE_RATE = 44100
+        const val SAMPLE_RATE = 44100
     }
 }
