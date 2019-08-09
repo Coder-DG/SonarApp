@@ -6,11 +6,13 @@ import android.widget.Button
 import android.media.AudioTrack
 import android.media.AudioFormat.ENCODING_PCM_16BIT
 import android.media.AudioFormat.CHANNEL_OUT_MONO
-import android.media.AudioManager
-import android.media.AudioFormat.ENCODING_PCM_8BIT
 import android.widget.EditText
 import kotlin.math.ceil
 import kotlin.math.sin
+import android.media.AudioAttributes
+import android.media.AudioFormat
+
+
 
 
 class MainActivity : AppCompatActivity() {
@@ -26,20 +28,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playSound(frequency: Double, duration: Double) {
-        // AudioTrack definition
         val mBufferSize = AudioTrack.getMinBufferSize(
-            ONE_SECOND,
+            DEFAULT_SAMPLE_RATE,
             CHANNEL_OUT_MONO,
-            ENCODING_PCM_8BIT
+            ENCODING_PCM_16BIT
         )
-        // https://developer.android.com/reference/android/media/AudioTrack.Builder.html
-        val mAudioTrack = AudioTrack(
-            AudioManager.STREAM_MUSIC,
-            ONE_SECOND,
-            CHANNEL_OUT_MONO,
-            ENCODING_PCM_16BIT,
-            mBufferSize, AudioTrack.MODE_STREAM
-        )
+        val mAudioPlayer = AudioTrack.Builder()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(ENCODING_PCM_16BIT)
+                    .setSampleRate(DEFAULT_SAMPLE_RATE)
+                    .setChannelMask(CHANNEL_OUT_MONO)
+                    .build()
+            )
+            .setBufferSizeInBytes(mBufferSize)
+            .build()
 
         // Sine wave
         val mDuration = duration * ONE_SECOND
@@ -50,16 +59,17 @@ class MainActivity : AppCompatActivity() {
             mBuffer[i] = (mSound[i] * java.lang.Short.MAX_VALUE).toShort()
         }
 
-        mAudioTrack.setStereoVolume(AudioTrack.getMaxVolume(), AudioTrack.getMaxVolume())
-        mAudioTrack.play()
+        mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
+        mAudioPlayer.play()
 
-        mAudioTrack.write(mBuffer, 0, mSound.size)
-        mAudioTrack.stop()
-        mAudioTrack.release()
+        mAudioPlayer.write(mBuffer, 0, mSound.size)
+        mAudioPlayer.stop()
+        mAudioPlayer.release()
 
     }
 
     companion object {
         const val ONE_SECOND = 44100
+        const val DEFAULT_SAMPLE_RATE = 44100
     }
 }
