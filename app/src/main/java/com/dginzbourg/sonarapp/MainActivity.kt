@@ -1,7 +1,9 @@
 package com.dginzbourg.sonarapp
 
+import android.Manifest
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
+import android.content.pm.PackageManager
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
@@ -15,6 +17,8 @@ import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.widget.TextView
 import kotlin.math.log10
@@ -25,13 +29,27 @@ class MainActivity : AppCompatActivity() {
     private var mPlaySoundLock: Lock = ReentrantLock()
     private var mShouldContinue: Boolean = false
     private var mDBLevel: MutableLiveData<Float> = MutableLiveData()
+    private lateinit var mRecordButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 123)
+        }
+
         setContentView(R.layout.activity_main)
         val mDBLevelView = findViewById<TextView>(R.id.db_level)
         mDBLevel.observe(this, Observer<Float> {
-            mDBLevelView.text = it?.toString() ?: NULL
+            if (it == null){
+                mDBLevelView.text = NULL
+            }
+            val text = "%.2f".format(it)
+            mDBLevelView.text = text
         })
         findViewById<Button>(R.id.play_sound_button).setOnClickListener {
             val duration = findViewById<EditText>(R.id.duration).text.toString().toDouble()
@@ -40,21 +58,26 @@ class MainActivity : AppCompatActivity() {
                 playSound(frequency, duration)
             }.start()
         }
-        findViewById<Button>(R.id.record_button).setOnClickListener {
+        mRecordButton = findViewById(R.id.record_button)
+        mRecordButton.setOnClickListener {
             when (mShouldContinue) {
                 false -> {
-                    (it as Button).text = STOP_RECORDING
+                    mRecordButton.text = STOP_RECORDING
                     mShouldContinue = true
                     Thread {
                         record()
                     }.start()
                 }
                 else -> {
-                    (it as Button).text = START_RECORDING
-                    mShouldContinue = false
+                    stopRecording()
                 }
             }
         }
+    }
+
+    private fun stopRecording() {
+        mRecordButton.text = START_RECORDING
+        mShouldContinue = false
     }
 
     private fun playSound(frequency: Double, duration: Double) {
@@ -142,6 +165,12 @@ class MainActivity : AppCompatActivity() {
     private fun updateAvgDB(shortArray: ShortArray) {
         val doubleArray = shortArray.map { it.toDouble().pow(2) / Short.MAX_VALUE }
         mDBLevel.postValue((10 * log10(doubleArray.average())).toFloat())
+    }
+
+
+    override fun onPause() {
+        stopRecording()
+        super.onPause()
     }
 
     companion object {
