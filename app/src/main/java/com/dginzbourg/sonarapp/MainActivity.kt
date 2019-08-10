@@ -4,8 +4,6 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
 import android.media.AudioTrack
-import android.media.AudioFormat.ENCODING_PCM_16BIT
-import android.media.AudioFormat.CHANNEL_OUT_MONO
 import android.widget.EditText
 import kotlin.math.ceil
 import kotlin.math.sin
@@ -13,10 +11,14 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import android.util.Log
 
 
 class MainActivity : AppCompatActivity() {
-    var lock: Lock = ReentrantLock()
+    var mPlaySoundLock: Lock = ReentrantLock()
+    var mShouldContinue: Boolean = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,14 +34,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun playSound(frequency: Double, duration: Double) {
         // Ignore other button calls during the time this plays sound
-        if (!lock.tryLock()) {
+        if (!mPlaySoundLock.tryLock()) {
             return
         }
-        val mBufferSize = ceil(AudioTrack.getMinBufferSize(
+        val mBufferSize = AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
-            CHANNEL_OUT_MONO,
-            ENCODING_PCM_16BIT
-        ) / 2.0).toInt() // The size returned is in bytes, we use Shorts (2b each)
+            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        ) / 2// The size returned is in bytes, we use Shorts (2b each)
         val mAudioPlayer = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -49,9 +51,9 @@ class MainActivity : AppCompatActivity() {
             )
             .setAudioFormat(
                 AudioFormat.Builder()
-                    .setEncoding(ENCODING_PCM_16BIT)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setSampleRate(SAMPLE_RATE)
-                    .setChannelMask(CHANNEL_OUT_MONO)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build()
             )
             .setBufferSizeInBytes(mBufferSize)
@@ -71,11 +73,53 @@ class MainActivity : AppCompatActivity() {
         mAudioPlayer.stop()
         mAudioPlayer.release()
 
-        lock.unlock()
+        mPlaySoundLock.unlock()
+
+    }
+
+    private fun record() {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO)
+        val bufferSize = AudioRecord.getMinBufferSize(
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
+        val audioBuffer = ShortArray(bufferSize / 2)
+        val record = AudioRecord.Builder()
+            .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setSampleRate(SAMPLE_RATE)
+                    .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                    .build()
+            )
+            .setBufferSizeInBytes(bufferSize)
+            .build()
+
+        if (record.state != AudioRecord.STATE_INITIALIZED) {
+            Log.e(LOG_TAG, "Unable to init recorder")
+            return
+        }
+        record.startRecording()
+
+
+        var shortsRead: Long = 0
+        while (mShouldContinue) {
+            val numberOfShort = record.read(audioBuffer, 0, audioBuffer.size)
+            shortsRead += numberOfShort.toLong()
+
+            // Notify waveform
+            mListener.onAudioDataReceived(audioBuffer)
+        }
+
+        record.stop()
+        record.release()
 
     }
 
     companion object {
         const val SAMPLE_RATE = 44100
+        const val LOG_TAG = "sonar_app"
     }
 }
