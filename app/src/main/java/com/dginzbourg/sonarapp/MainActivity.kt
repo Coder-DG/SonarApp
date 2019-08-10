@@ -1,5 +1,7 @@
 package com.dginzbourg.sonarapp
 
+import android.arch.lifecycle.MutableLiveData
+import android.arch.lifecycle.Observer
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
@@ -14,21 +16,44 @@ import java.util.concurrent.locks.ReentrantLock
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
+import android.widget.TextView
+import kotlin.math.log10
+import kotlin.math.pow
 
 
 class MainActivity : AppCompatActivity() {
-    var mPlaySoundLock: Lock = ReentrantLock()
-    var mShouldContinue: Boolean = true
+    private var mPlaySoundLock: Lock = ReentrantLock()
+    private var mShouldContinue: Boolean = false
+    private var mDBLevel: MutableLiveData<Float> = MutableLiveData()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        findViewById<Button>(R.id.button).setOnClickListener {
+        val mDBLevelView = findViewById<TextView>(R.id.db_level)
+        mDBLevel.observe(this, Observer<Float> {
+            mDBLevelView.text = it?.toString() ?: NULL
+        })
+        findViewById<Button>(R.id.play_sound_button).setOnClickListener {
             val duration = findViewById<EditText>(R.id.duration).text.toString().toDouble()
             val frequency = findViewById<EditText>(R.id.frequency).text.toString().toDouble()
             Thread {
                 playSound(frequency, duration)
             }.start()
+        }
+        findViewById<Button>(R.id.record_button).setOnClickListener {
+            when (mShouldContinue) {
+                false -> {
+                    (it as Button).text = STOP_RECORDING
+                    mShouldContinue = true
+                    Thread {
+                        record()
+                    }.start()
+                }
+                else -> {
+                    (it as Button).text = START_RECORDING
+                    mShouldContinue = false
+                }
+            }
         }
     }
 
@@ -63,7 +88,7 @@ class MainActivity : AppCompatActivity() {
         for (i in mBuffer.indices) {
             mBuffer[i] = (
                     sin(frequency * 2 * Math.PI * i / SAMPLE_RATE) // This is the percentage of the max value
-                            * java.lang.Short.MAX_VALUE).toShort()
+                            * Short.MAX_VALUE).toShort()
         }
 
         mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
@@ -104,13 +129,9 @@ class MainActivity : AppCompatActivity() {
         record.startRecording()
 
 
-        var shortsRead: Long = 0
         while (mShouldContinue) {
-            val numberOfShort = record.read(audioBuffer, 0, audioBuffer.size)
-            shortsRead += numberOfShort.toLong()
-
-            // Notify waveform
-            mListener.onAudioDataReceived(audioBuffer)
+            record.read(audioBuffer, 0, audioBuffer.size)
+            updateAvgDB(audioBuffer)
         }
 
         record.stop()
@@ -118,8 +139,16 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    private fun updateAvgDB(shortArray: ShortArray) {
+        val doubleArray = shortArray.map { it.toDouble().pow(2) / Short.MAX_VALUE }
+        mDBLevel.postValue((10 * log10(doubleArray.average())).toFloat())
+    }
+
     companion object {
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
+        const val STOP_RECORDING = "Stop Recording"
+        const val START_RECORDING = "Start Recording"
+        const val NULL = "NULL"
     }
 }
