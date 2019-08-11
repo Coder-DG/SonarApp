@@ -28,6 +28,7 @@ import kotlin.math.pow
 class MainActivity : AppCompatActivity() {
     private var mDBLevel: MutableLiveData<Float> = MutableLiveData()
     private var executor: ExecutorService = Executors.newCachedThreadPool()
+    private var mPlayerMinBufferSize: Int = -1
     private lateinit var mAudioPlayer: AudioTrack
     private lateinit var mPlayerBuffer: ShortArray
     private lateinit var mAudioRecorder: AudioRecord
@@ -69,11 +70,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initTransmitter() {
-//        val mBufferSize = AudioTrack.getMinBufferSize(
-//            SAMPLE_RATE,
-//            AudioFormat.CHANNEL_OUT_MONO,
-//            AudioFormat.ENCODING_PCM_16BIT
-//        ) / 2// The size returned is in bytes, we use Shorts (2b each)
+        mPlayerMinBufferSize = AudioTrack.getMinBufferSize(
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        ) / 2// The size returned is in bytes, we use Shorts (2b each)
         mAudioPlayer = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -88,10 +89,10 @@ class MainActivity : AppCompatActivity() {
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build()
             )
-            .setBufferSizeInBytes(PLAYBACK_BUFFER_SIZE)
+            .setBufferSizeInBytes(mPlayerMinBufferSize)
             .build()
 
-        mPlayerBuffer = ShortArray(PLAYBACK_BUFFER_SIZE)
+        mPlayerBuffer = ShortArray(mPlayerMinBufferSize)
         for (sampleIndex in mPlayerBuffer.indices) {
             mPlayerBuffer[sampleIndex] = (
                     sin(MAIN_FREQUENCY * 2 * Math.PI * sampleIndex / SAMPLE_RATE) // The percentage of the max value
@@ -177,7 +178,6 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val MAIN_FREQUENCY: Double = 20000.0
         const val SAMPLE_RATE = 44100
-        val PLAYBACK_BUFFER_SIZE = ceil(SAMPLE_RATE / MAIN_FREQUENCY).toInt()
         const val LOG_TAG = "sonar_app"
         const val NULL = "NULL"
         const val RECORDING_SAMPLES = 0.5 * SAMPLE_RATE // 0.5sec of recordings
