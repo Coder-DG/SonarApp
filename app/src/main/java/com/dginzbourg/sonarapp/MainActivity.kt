@@ -6,30 +6,33 @@ import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.widget.Button
 import android.media.AudioTrack
-import android.widget.EditText
 import kotlin.math.ceil
 import kotlin.math.sin
 import android.media.AudioAttributes
 import android.media.AudioFormat
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.widget.TextView
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.math.log10
 import kotlin.math.pow
 
 
 class MainActivity : AppCompatActivity() {
-    private var mPlaySoundLock: Lock = ReentrantLock()
-    private var mShouldContinue: Boolean = false
     private var mDBLevel: MutableLiveData<Float> = MutableLiveData()
-    private lateinit var mRecordButton: Button
+    private var executor: ExecutorService = Executors.newCachedThreadPool()
+    private lateinit var mAudioPlayer: AudioTrack
+    private lateinit var mPlayerBuffer: ShortArray
+    private lateinit var mAudioRecorder: AudioRecord
+    private lateinit var mRecorderBuffer: ShortArray
+    private val mCyclicBarrier = CyclicBarrier(2) // Transmitter and listener
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,58 +42,39 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 123)
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1234)
         }
 
         setContentView(R.layout.activity_main)
         val mDBLevelView = findViewById<TextView>(R.id.db_level)
         mDBLevel.observe(this, Observer<Float> {
-            if (it == null){
+            if (it == null) {
                 mDBLevelView.text = NULL
             }
             val text = "%.2f".format(it)
             mDBLevelView.text = text
         })
-        findViewById<Button>(R.id.play_sound_button).setOnClickListener {
-            val duration = findViewById<EditText>(R.id.duration).text.toString().toDouble()
-            val frequency = findViewById<EditText>(R.id.frequency).text.toString().toDouble()
-            Thread {
-                playSound(frequency, duration)
-            }.start()
-        }
-        mRecordButton = findViewById(R.id.record_button)
-        mRecordButton.setOnClickListener {
-            when (mShouldContinue) {
-                false -> {
-                    mRecordButton.text = STOP_RECORDING
-                    mShouldContinue = true
-                    Thread {
-                        record()
-                    }.start()
-                }
-                else -> {
-                    stopRecording()
-                }
-            }
-        }
+        submitNextTransmissionTasks()
     }
 
-    private fun stopRecording() {
-        mRecordButton.text = START_RECORDING
-        mShouldContinue = false
+    override fun onResume() {
+        initTransmitter()
+        initListener()
+        super.onResume()
     }
 
-    private fun playSound(frequency: Double, duration: Double) {
-        // Ignore other button calls during the time this plays sound
-        if (!mPlaySoundLock.tryLock()) {
-            return
-        }
-        val mBufferSize = AudioTrack.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        ) / 2// The size returned is in bytes, we use Shorts (2b each)
-        val mAudioPlayer = AudioTrack.Builder()
+    override fun onPause() {
+        executor.shutdownNow()
+        super.onPause()
+    }
+
+    private fun initTransmitter() {
+//        val mBufferSize = AudioTrack.getMinBufferSize(
+//            SAMPLE_RATE,
+//            AudioFormat.CHANNEL_OUT_MONO,
+//            AudioFormat.ENCODING_PCM_16BIT
+//        ) / 2// The size returned is in bytes, we use Shorts (2b each)
+        mAudioPlayer = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -104,36 +88,24 @@ class MainActivity : AppCompatActivity() {
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build()
             )
-            .setBufferSizeInBytes(mBufferSize)
+            .setBufferSizeInBytes(PLAYBACK_BUFFER_SIZE)
             .build()
 
-        val mBuffer = ShortArray(ceil(duration * SAMPLE_RATE).toInt())
-        for (i in mBuffer.indices) {
-            mBuffer[i] = (
-                    sin(frequency * 2 * Math.PI * i / SAMPLE_RATE) // This is the percentage of the max value
+        mPlayerBuffer = ShortArray(PLAYBACK_BUFFER_SIZE)
+        for (sampleIndex in mPlayerBuffer.indices) {
+            mPlayerBuffer[sampleIndex] = (
+                    sin(MAIN_FREQUENCY * 2 * Math.PI * sampleIndex / SAMPLE_RATE) // The percentage of the max value
                             * Short.MAX_VALUE).toShort()
         }
 
         mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
-        mAudioPlayer.play()
-
-        mAudioPlayer.write(mBuffer, 0, mBuffer.size)
-        mAudioPlayer.stop()
-        mAudioPlayer.release()
-
-        mPlaySoundLock.unlock()
-
     }
 
-    private fun record() {
-        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO)
-        val bufferSize = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        )
-        val audioBuffer = ShortArray(bufferSize / 2)
-        val record = AudioRecord.Builder()
+    private fun initListener() {
+        Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
+        val bufferSize = RECORDING_SAMPLES
+        mRecorderBuffer = ShortArray(bufferSize)
+        mAudioRecorder = AudioRecord.Builder()
             .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
             .setAudioFormat(
                 AudioFormat.Builder()
@@ -144,40 +116,67 @@ class MainActivity : AppCompatActivity() {
             )
             .setBufferSizeInBytes(bufferSize)
             .build()
+    }
 
-        if (record.state != AudioRecord.STATE_INITIALIZED) {
+    private fun transmit() {
+        mAudioPlayer.play()
+
+        try {
+            mCyclicBarrier.await()
+        } catch (ex: InterruptedException) {
+            return
+        }
+
+        mAudioPlayer.write(mPlayerBuffer, 0, mPlayerBuffer.size)
+        mAudioPlayer.stop()
+        mAudioPlayer.release()
+    }
+
+    private fun listen() {
+        if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
             Log.e(LOG_TAG, "Unable to init recorder")
             return
         }
-        record.startRecording()
-
-
-        while (mShouldContinue) {
-            record.read(audioBuffer, 0, audioBuffer.size)
-            updateAvgDB(audioBuffer)
+        try {
+            mCyclicBarrier.await()
+        } catch (ex: InterruptedException) {
+            submitNextTransmissionTasks()
+            return
         }
 
-        record.stop()
-        record.release()
+        mAudioRecorder.startRecording()
+        mAudioRecorder.read(mRecorderBuffer, 0, mRecorderBuffer.size)
+        submitAnalyzerTask()
 
+        mAudioRecorder.stop()
+        mAudioRecorder.release()
+        mCyclicBarrier.reset()
+
+        submitNextTransmissionTasks()
     }
 
-    private fun updateAvgDB(shortArray: ShortArray) {
-        val doubleArray = shortArray.map { it.toDouble().pow(2) / Short.MAX_VALUE }
+    private fun submitAnalyzerTask() {
+        executor.submit(Thread { updateAvgDB(mRecorderBuffer.copyOf()) })
+    }
+
+    private fun submitNextTransmissionTasks() {
+        mCyclicBarrier.reset()
+        executor.submit(Thread { transmit() })
+        executor.submit(Thread { listen() })
+    }
+
+    private fun updateAvgDB(recorderBuffer: ShortArray) {
+        val doubleArray = recorderBuffer.map { it.toDouble().pow(2) / Short.MAX_VALUE }
         mDBLevel.postValue((10 * log10(doubleArray.average())).toFloat())
     }
 
 
-    override fun onPause() {
-        stopRecording()
-        super.onPause()
-    }
-
     companion object {
+        const val MAIN_FREQUENCY: Double = 20000.0
         const val SAMPLE_RATE = 44100
+        val PLAYBACK_BUFFER_SIZE = ceil(SAMPLE_RATE / MAIN_FREQUENCY).toInt()
         const val LOG_TAG = "sonar_app"
-        const val STOP_RECORDING = "Stop Recording"
-        const val START_RECORDING = "Start Recording"
         const val NULL = "NULL"
+        const val RECORDING_SAMPLES = 2 * SAMPLE_RATE // 2 seconds of recordings
     }
 }
