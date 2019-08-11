@@ -72,6 +72,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initTransmitter() {
+        Log.d(LOG_TAG, "Initializing the Transmitter...")
         mPlayerMinBufferSize = AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_OUT_MONO,
@@ -105,7 +106,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initListener() {
-        Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
+        Log.d(LOG_TAG, "Initializing the Listener...")
         val bufferSize = RECORDING_SAMPLES.toInt()
         mRecorderBuffer = ShortArray(bufferSize)
         mAudioRecorder = AudioRecord.Builder()
@@ -130,7 +131,7 @@ class MainActivity : AppCompatActivity() {
         } catch (ex: InterruptedException) {
             return
         }
-
+        Log.d(LOG_TAG, "Transmitting...")
         mAudioPlayer.play()
         mAudioPlayer.write(mPlayerBuffer, 0, mPlayerBuffer.size)
         mAudioPlayer.stop()
@@ -143,7 +144,7 @@ class MainActivity : AppCompatActivity() {
             submitNextTranmissionCycle()
             return
         }
-
+        Log.d(LOG_TAG, "Listening...")
         mAudioRecorder.startRecording()
         mAudioRecorder.read(mRecorderBuffer, 0, mRecorderBuffer.size)
         submitAnalyzerTask()
@@ -171,8 +172,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun submitNextTranmissionCycle() {
         mCyclicBarrier.reset()
-        executor.submit(Thread { transmit() })
-        executor.submit(Thread { listen() })
+        executor.submit(Thread {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
+            transmit()
+        })
+        executor.submit(Thread {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
+            listen()
+        })
     }
 
 
