@@ -66,6 +66,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         executor.shutdownNow()
+        mAudioRecorder.release()
+        mAudioPlayer.release()
         super.onPause()
     }
 
@@ -132,7 +134,6 @@ class MainActivity : AppCompatActivity() {
         mAudioPlayer.play()
         mAudioPlayer.write(mPlayerBuffer, 0, mPlayerBuffer.size)
         mAudioPlayer.stop()
-        mAudioPlayer.release()
     }
 
     private fun listen() {
@@ -148,7 +149,7 @@ class MainActivity : AppCompatActivity() {
         submitAnalyzerTask()
 
         mAudioRecorder.stop()
-        mAudioRecorder.release()
+
         mCyclicBarrier.reset()
 
         submitNextTranmissionCycle()
