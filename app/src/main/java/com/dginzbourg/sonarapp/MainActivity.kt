@@ -116,6 +116,9 @@ class MainActivity : AppCompatActivity() {
             )
             .setBufferSizeInBytes(bufferSize)
             .build()
+        if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
+            Log.e(LOG_TAG, "Unable to init recorder")
+        }
     }
 
     private fun transmit() {
@@ -133,10 +136,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun listen() {
-        if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
-            Log.e(LOG_TAG, "Unable to init recorder")
-            return
-        }
         try {
             mCyclicBarrier.await()
         } catch (ex: InterruptedException) {
