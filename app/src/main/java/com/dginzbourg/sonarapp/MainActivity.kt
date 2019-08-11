@@ -154,19 +154,20 @@ class MainActivity : AppCompatActivity() {
         submitNextTranmissionCycle()
     }
 
+    private fun analyzeRecordings(recorderBuffer: ShortArray) {
+        /* Currently this just updates a textview to show the DB meter */
+        val doubleArray = recorderBuffer.map { it.toDouble().pow(2) / Short.MAX_VALUE }
+        mDBLevel.postValue((10 * log10(doubleArray.average())).toFloat())
+    }
+
     private fun submitAnalyzerTask() {
-        executor.submit(Thread { updateAvgDB(mRecorderBuffer.copyOf()) })
+        executor.submit(Thread { analyzeRecordings(mRecorderBuffer.copyOf()) })
     }
 
     private fun submitNextTranmissionCycle() {
         mCyclicBarrier.reset()
         executor.submit(Thread { transmit() })
         executor.submit(Thread { listen() })
-    }
-
-    private fun updateAvgDB(recorderBuffer: ShortArray) {
-        val doubleArray = recorderBuffer.map { it.toDouble().pow(2) / Short.MAX_VALUE }
-        mDBLevel.postValue((10 * log10(doubleArray.average())).toFloat())
     }
 
 
