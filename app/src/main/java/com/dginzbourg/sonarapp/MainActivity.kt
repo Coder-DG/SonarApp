@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mPlayerBuffer: ShortArray
     private lateinit var mAudioRecorder: AudioRecord
     private lateinit var mRecorderBuffer: ShortArray
-    private val mCyclicBarrier = CyclicBarrier(2) // Transmitter and listener
+    private val mCyclicBarrier = CyclicBarrier(2) // 2 = transmitter and listener
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
