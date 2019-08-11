@@ -122,14 +122,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun transmit() {
-        mAudioPlayer.play()
-
         try {
             mCyclicBarrier.await()
         } catch (ex: InterruptedException) {
             return
         }
 
+        mAudioPlayer.play()
         mAudioPlayer.write(mPlayerBuffer, 0, mPlayerBuffer.size)
         mAudioPlayer.stop()
         mAudioPlayer.release()
@@ -155,9 +154,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun analyzeRecordings(recorderBuffer: ShortArray) {
-        /* Currently this just updates a textview to show the DB meter */
-        val doubleArray = recorderBuffer.map { it.toDouble().pow(2) / Short.MAX_VALUE }
-        mDBLevel.postValue((10 * log10(doubleArray.average())).toFloat())
+        /* Currently this just updates a textview to show the dB meter
+        *
+        * The reference point that is set is the maximum volume the mic can detect, so it doesn't measure 'real' dB
+        * levels.
+        * */
+        val doubleArray = recorderBuffer.map { it.toDouble().pow(2) }
+        mDBLevel.postValue((10 * log10(doubleArray.average() / Short.MAX_VALUE)).toFloat())
     }
 
     private fun submitAnalyzerTask() {
@@ -177,6 +180,6 @@ class MainActivity : AppCompatActivity() {
         val PLAYBACK_BUFFER_SIZE = ceil(SAMPLE_RATE / MAIN_FREQUENCY).toInt()
         const val LOG_TAG = "sonar_app"
         const val NULL = "NULL"
-        const val RECORDING_SAMPLES = 2 * SAMPLE_RATE // 2 seconds of recordings
+        const val RECORDING_SAMPLES = 0.5 * SAMPLE_RATE // 0.5sec of recordings
     }
 }
