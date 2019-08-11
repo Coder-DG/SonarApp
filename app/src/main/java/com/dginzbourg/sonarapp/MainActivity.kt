@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
             val text = "%.2f".format(it)
             mDBLevelView.text = text
         })
-        submitNextTransmissionTasks()
+        submitNextTranmissionCycle()
     }
 
     override fun onResume() {
@@ -140,7 +140,7 @@ class MainActivity : AppCompatActivity() {
         try {
             mCyclicBarrier.await()
         } catch (ex: InterruptedException) {
-            submitNextTransmissionTasks()
+            submitNextTranmissionCycle()
             return
         }
 
@@ -152,14 +152,14 @@ class MainActivity : AppCompatActivity() {
         mAudioRecorder.release()
         mCyclicBarrier.reset()
 
-        submitNextTransmissionTasks()
+        submitNextTranmissionCycle()
     }
 
     private fun submitAnalyzerTask() {
         executor.submit(Thread { updateAvgDB(mRecorderBuffer.copyOf()) })
     }
 
-    private fun submitNextTransmissionTasks() {
+    private fun submitNextTranmissionCycle() {
         mCyclicBarrier.reset()
         executor.submit(Thread { transmit() })
         executor.submit(Thread { listen() })
