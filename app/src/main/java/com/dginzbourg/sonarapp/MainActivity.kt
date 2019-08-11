@@ -103,7 +103,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initListener() {
         Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-        val bufferSize = RECORDING_SAMPLES
+        val bufferSize = RECORDING_SAMPLES.toInt()
         mRecorderBuffer = ShortArray(bufferSize)
         mAudioRecorder = AudioRecord.Builder()
             .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
