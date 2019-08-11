@@ -155,10 +155,6 @@ class MainActivity : AppCompatActivity() {
         submitAnalyzerTask()
 
         mAudioRecorder.stop()
-
-        mCyclicBarrier.reset()
-
-        submitNextTranmissionCycle()
     }
 
     private fun analyzeRecordings(recorderBuffer: ShortArray) {
@@ -178,13 +174,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun submitNextTranmissionCycle() {
         mCyclicBarrier.reset()
-        executor.submit(Thread {
+        val transmissionThread = Thread {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             transmit()
-        })
+        }
+        executor.submit(transmissionThread)
         executor.submit(Thread {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             listen()
+            transmissionThread.join()
+            mCyclicBarrier.reset()
+            submitNextTranmissionCycle()
         })
     }
 
