@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
             val text = "%.2f".format(it)
             mDBLevelView.text = text
         })
+        Log.d(LOG_TAG, "App started")
         submitNextTranmissionCycle()
     }
 
@@ -127,8 +128,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun transmit() {
         try {
+            Log.d(LOG_TAG, "Waiting for the Listener")
             mCyclicBarrier.await()
         } catch (ex: InterruptedException) {
+            Log.d(LOG_TAG, "Barrier interrupted inside the transmitter")
             return
         }
         Log.d(LOG_TAG, "Transmitting...")
@@ -139,8 +142,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun listen() {
         try {
+            Log.d(LOG_TAG, "Waiting for the Transmitter...")
             mCyclicBarrier.await()
         } catch (ex: InterruptedException) {
+            Log.d(LOG_TAG, "Barrier inside the listener has been interrupted. Starting next cycle")
             submitNextTranmissionCycle()
             return
         }
@@ -162,6 +167,7 @@ class MainActivity : AppCompatActivity() {
         * The reference point that is set is the maximum volume the mic can detect, so it doesn't measure 'real' dB
         * levels.
         * */
+        Log.d(LOG_TAG, "Analyzing data...")
         val doubleArray = recorderBuffer.map { it.toDouble().pow(2) }
         mDBLevel.postValue((10 * log10(doubleArray.average() / Short.MAX_VALUE)).toFloat())
     }
