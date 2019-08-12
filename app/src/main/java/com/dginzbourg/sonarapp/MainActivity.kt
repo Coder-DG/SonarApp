@@ -123,7 +123,7 @@ class MainActivity : AppCompatActivity() {
                     .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
                     .build()
             )
-            .setBufferSizeInBytes(bufferSize)
+            .setBufferSizeInBytes(bufferSize * 2)
             .build()
         if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
             Log.e(LOG_TAG, "Unable to init recorder")
@@ -141,9 +141,7 @@ class MainActivity : AppCompatActivity() {
         Log.d(LOG_TAG, "Transmitting...")
         mAudioPlayer.write(mPlayerBuffer, 0, mPlayerBuffer.size)
         mAudioPlayer.play()
-        while (mAudioPlayer.playState != AudioTrack.PLAYSTATE_STOPPED) {
-            continue
-        }
+        while (mAudioPlayer.playState != AudioTrack.PLAYSTATE_STOPPED) {}
     }
 
     private fun listen() {
