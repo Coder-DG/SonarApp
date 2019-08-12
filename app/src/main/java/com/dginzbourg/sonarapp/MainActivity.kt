@@ -206,7 +206,7 @@ class MainActivity : AppCompatActivity() {
             SAMPLE_RATE,
             AudioFormat.CHANNEL_OUT_MONO,
             AudioFormat.ENCODING_PCM_16BIT
-        ) / 2// The size returned is in bytes, we use Shorts (2b each)
+        ) / 2 // The size returned is in bytes, we use Shorts (2b each)
         // How much fade to apply to each side of the player buffer's data
         const val FADE_PERCENT = 0.05
     }
