@@ -25,7 +25,6 @@ import kotlin.math.*
 class MainActivity : AppCompatActivity() {
     private var mDBLevel: MutableLiveData<Float> = MutableLiveData()
     private var executor: ExecutorService = Executors.newCachedThreadPool()
-    //    private var PLAYER_BUFFER_SIZE: Int = -1
     private lateinit var mAudioPlayer: AudioTrack
     private lateinit var mPlayerBuffer: ShortArray
     private lateinit var mAudioRecorder: AudioRecord
@@ -102,7 +101,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyFade(framesToFade: Int) {
-        var fadeFactor = 0.0
+        var fadeFactor: Double
         for (i in 0..framesToFade) {
             fadeFactor = i.toDouble() / framesToFade
             mPlayerBuffer[i] = (mPlayerBuffer[i] * fadeFactor).toShort()
