@@ -88,6 +88,8 @@ class MainActivity : AppCompatActivity() {
             .setBufferSizeInBytes(PLAYER_BUFFER_SIZE * 2) // This is in bytes and we use Short
             .build()
 
+        // TODO: check that the audio player has been initialized properly
+
         mPlayerBuffer = ShortArray(PLAYER_BUFFER_SIZE)
         for (sampleIndex in mPlayerBuffer.indices) {
             mPlayerBuffer[sampleIndex] = (
