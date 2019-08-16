@@ -16,9 +16,11 @@ import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.widget.TextView
+import org.jtransforms.dct.DoubleDCT_1D
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.locks.ReentrantLock
 import kotlin.math.*
 
 
@@ -29,7 +31,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mPlayerBuffer: ShortArray
     private lateinit var mAudioRecorder: AudioRecord
     private lateinit var mRecorderBuffer: ShortArray
+    private var mAnalyzerBuffer = DoubleArray(FFT_BUFFER_SIZE)
+    private var mSONARDataBuffer = DoubleArray(SONAR_DATA_BUFFER_SIZE)
     private val mCyclicBarrier = CyclicBarrier(2) // 2 = transmitter and listener
+    private val mAnalyzingLock = ReentrantLock()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,7 +62,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         initTransmitter()
         initListener()
-        submitNextTranmissionCycle()
+        submitNextTransmissionCycle()
         super.onResume()
     }
 
@@ -143,7 +148,8 @@ class MainActivity : AppCompatActivity() {
         Log.d(LOG_TAG, "Transmitting...")
         mAudioPlayer.write(mPlayerBuffer, 0, mPlayerBuffer.size)
         mAudioPlayer.play()
-        while (mAudioPlayer.playState != AudioTrack.PLAYSTATE_STOPPED) {}
+        while (mAudioPlayer.playState != AudioTrack.PLAYSTATE_STOPPED) {
+        }
     }
 
     private fun listen() {
@@ -152,7 +158,7 @@ class MainActivity : AppCompatActivity() {
             mCyclicBarrier.await()
         } catch (ex: InterruptedException) {
             Log.d(LOG_TAG, "Barrier inside the listener has been interrupted. Starting next cycle")
-            submitNextTranmissionCycle()
+            submitNextTransmissionCycle()
             return
         }
         Log.d(LOG_TAG, "Listening...")
@@ -164,21 +170,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun analyzeRecordings(recorderBuffer: ShortArray) {
-        /* Currently this just updates a textview to show the dB meter
+        /* Currently this just gets the 20KHz amplitude over the transmission time.
         *
-        * The reference point that is set is the maximum volume the mic can detect, so it doesn't measure 'real' dB
-        * levels.
+        * TODO: do the analysis in an orderly fashion. tryLock is not starvation free. This way we'll be able to give
+        *  the user the relevant distances.
         * */
+        // Only one thread at a time is allowed to use the buffer. This also simplifies how we deliver the relevant
+        // distance to the user (because there's only one analysis running at a time).
+        mAnalyzingLock.tryLock()
         Log.d(LOG_TAG, "Analyzing data...")
-        val doubleArray = recorderBuffer.map { it.toDouble().pow(2) }
-        mDBLevel.postValue((10 * log10(doubleArray.average() / Short.MAX_VALUE)).toFloat())
+
+        // TODO: loop through the data, analysing WINDOW_SIZE amount of data each time. Save the data to a file and
+        //  display max amplitude detected throughout this process (via mDBLevel.post(..))
+//        recorderBuffer.forEachIndexed { i, sh -> mAnalyzerBuffer[i] = sh.toDouble() / Short.MAX_VALUE }
+
+//        mDBLevel.postValue((10 * log10(doubleArray.average())).toFloat())
+        mAnalyzingLock.unlock()
     }
 
     private fun submitAnalyzerTask() {
         executor.submit(Thread { analyzeRecordings(mRecorderBuffer.copyOf()) })
     }
 
-    private fun submitNextTranmissionCycle() {
+    private fun submitNextTransmissionCycle() {
         mCyclicBarrier.reset()
         val transmissionThread = Thread {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
@@ -190,7 +204,7 @@ class MainActivity : AppCompatActivity() {
             listen()
             transmissionThread.join()
             mAudioPlayer.stop()
-            submitNextTranmissionCycle()
+            submitNextTransmissionCycle()
         })
     }
 
@@ -200,7 +214,8 @@ class MainActivity : AppCompatActivity() {
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         const val NULL = "NULL"
-        const val RECORDING_SAMPLES = 0.5 * SAMPLE_RATE // 0.5sec of recordings
+        // 0.5sec of recordings. Can't be too little (you'll get an error).
+        const val RECORDING_SAMPLES = 0.5 * SAMPLE_RATE
         val PLAYER_BUFFER_SIZE = AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_OUT_MONO,
@@ -208,5 +223,11 @@ class MainActivity : AppCompatActivity() {
         ) / 2 // The size returned is in bytes, we use Shorts (2b each)
         // How much fade to apply to each side of the player buffer's data
         const val FADE_PERCENT = 0.05
+        const val WINDOW_SIZE = 1024
+        val WINDOW_OVERLAP = floor(0.5 * WINDOW_SIZE)
+        val FFT_BUFFER_SIZE = 2 * WINDOW_SIZE
+        /* 0.03 = time it takes for sound to travel 10.29m in air that is 20c degrees hot. That's our threshold */
+        const val LISTENING_THRESHOLD = 0.03
+        val SONAR_DATA_BUFFER_SIZE = min(ceil(SAMPLE_RATE * LISTENING_THRESHOLD).toInt(), RECORDING_SAMPLES.toInt())
     }
 }
