@@ -15,7 +15,10 @@ import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
-import android.widget.TextView
+import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
 import org.jtransforms.fft.DoubleFFT_1D
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.ExecutorService
@@ -25,7 +28,7 @@ import kotlin.math.*
 
 
 class MainActivity : AppCompatActivity() {
-    private var mSONARAmplitude: MutableLiveData<Float> = MutableLiveData()
+    private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
     private var executor: ExecutorService = Executors.newCachedThreadPool()
     private lateinit var mAudioPlayer: AudioTrack
     private lateinit var mPlayerBuffer: ShortArray
@@ -49,13 +52,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_main)
-        val mSONARAMplitudeView = findViewById<TextView>(R.id.sonar_amp_level)
-        mSONARAmplitude.observe(this, Observer<Float> {
-            if (it == null) {
-                mSONARAMplitudeView.text = NULL
-            }
-            val text = "%.2f".format(it)
-            mSONARAMplitudeView.text = text
+        val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
+        mSONARAmplitude.observe(this, Observer<LineData> {
+            if (it == null)
+                return@Observer
+            sonarAmplitudeChart.data = it
+            sonarAmplitudeChart.invalidate()
         })
         Log.d(LOG_TAG, "App started")
     }
@@ -194,8 +196,16 @@ class MainActivity : AppCompatActivity() {
             * this is the right calculation */
             mSONARDataBuffer[i] = mAnalyzerBuffer[(MAIN_FREQUENCY / (SAMPLE_RATE / 2.0 / WINDOW_SIZE)).toInt()]
         }
-//        mSONARAmplitude.postValue(100*m)
+        postLineData()
         mAnalyzingLock.unlock()
+    }
+
+    private fun postLineData() {
+        val entries = ArrayList<Entry>()
+        mSONARDataBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
+        val dataSet = LineDataSet(entries, "SONAR Amplitude")
+        dataSet.color = 16515942
+        mSONARAmplitude.postValue(LineData(dataSet))
     }
 
     private fun submitAnalyzerTask() {
