@@ -16,7 +16,7 @@ import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.widget.TextView
-import org.jtransforms.dct.DoubleDCT_1D
+import org.jtransforms.fft.DoubleFFT_1D
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -25,7 +25,7 @@ import kotlin.math.*
 
 
 class MainActivity : AppCompatActivity() {
-    private var mDBLevel: MutableLiveData<Float> = MutableLiveData()
+    private var mSONARAmplitude: MutableLiveData<Float> = MutableLiveData()
     private var executor: ExecutorService = Executors.newCachedThreadPool()
     private lateinit var mAudioPlayer: AudioTrack
     private lateinit var mPlayerBuffer: ShortArray
@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mRecorderBuffer: ShortArray
     private var mAnalyzerBuffer = DoubleArray(FFT_BUFFER_SIZE)
     private var mSONARDataBuffer = DoubleArray(SONAR_DATA_BUFFER_SIZE)
+    private var mFFT = DoubleFFT_1D(WINDOW_SIZE.toLong())
     private val mCyclicBarrier = CyclicBarrier(2) // 2 = transmitter and listener
     private val mAnalyzingLock = ReentrantLock()
 
@@ -48,13 +49,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_main)
-        val mDBLevelView = findViewById<TextView>(R.id.db_level)
-        mDBLevel.observe(this, Observer<Float> {
+        val mSONARAMplitudeView = findViewById<TextView>(R.id.sonar_amp_level)
+        mSONARAmplitude.observe(this, Observer<Float> {
             if (it == null) {
-                mDBLevelView.text = NULL
+                mSONARAMplitudeView.text = NULL
             }
             val text = "%.2f".format(it)
-            mDBLevelView.text = text
+            mSONARAMplitudeView.text = text
         })
         Log.d(LOG_TAG, "App started")
     }
@@ -173,18 +174,27 @@ class MainActivity : AppCompatActivity() {
         /* Currently this just gets the 20KHz amplitude over the transmission time.
         *
         * TODO: do the analysis in an orderly fashion. tryLock is not starvation free. This way we'll be able to give
-        *  the user the relevant distances.
+        *  the user the relevant distances. This can be dealt with after finishing the FFT milestone.
         * */
         // Only one thread at a time is allowed to use the buffer. This also simplifies how we deliver the relevant
         // distance to the user (because there's only one analysis running at a time).
         mAnalyzingLock.tryLock()
         Log.d(LOG_TAG, "Analyzing data...")
 
-        // TODO: loop through the data, analysing WINDOW_SIZE amount of data each time. Save the data to a file and
-        //  display max amplitude detected throughout this process (via mDBLevel.post(..))
-//        recorderBuffer.forEachIndexed { i, sh -> mAnalyzerBuffer[i] = sh.toDouble() / Short.MAX_VALUE }
-
-//        mDBLevel.postValue((10 * log10(doubleArray.average())).toFloat())
+        for (i in mSONARDataBuffer.indices) {
+            val startPos = i * WINDOW_OVERLAP_EXTERIOR.toInt()
+            val endPos = i * WINDOW_OVERLAP_EXTERIOR.toInt() + WINDOW_SIZE
+            for (indexInWindow in startPos..endPos) {
+                // Normalize data and copy to mAnalyzerBuffer
+                mAnalyzerBuffer[indexInWindow - startPos] = recorderBuffer[indexInWindow] / Short.MAX_VALUE.toDouble()
+            }
+            mFFT.realForwardFull(mAnalyzerBuffer)
+            /* There are 1024 frequency buckets, we need the one where the main frequency resides. Not sure about the
+            * /2.0 but when we measure with a sample rate of X then the max frequency we can measure is 0.5X. I hope
+            * this is the right calculation */
+            mSONARDataBuffer[i] = mAnalyzerBuffer[(MAIN_FREQUENCY / (SAMPLE_RATE / 2.0 / WINDOW_SIZE)).toInt()]
+        }
+//        mSONARAmplitude.postValue(100*m)
         mAnalyzingLock.unlock()
     }
 
@@ -209,12 +219,12 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    companion object {
+    private companion object {
         const val MAIN_FREQUENCY: Double = 20000.0
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         const val NULL = "NULL"
-        // 0.5sec of recordings. Can't be too little (you'll get an error).
+        // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         const val RECORDING_SAMPLES = 0.5 * SAMPLE_RATE
         val PLAYER_BUFFER_SIZE = AudioTrack.getMinBufferSize(
             SAMPLE_RATE,
@@ -225,9 +235,13 @@ class MainActivity : AppCompatActivity() {
         const val FADE_PERCENT = 0.05
         const val WINDOW_SIZE = 1024
         val WINDOW_OVERLAP = floor(0.5 * WINDOW_SIZE)
-        val FFT_BUFFER_SIZE = 2 * WINDOW_SIZE
-        /* 0.03 = time it takes for sound to travel 10.29m in air that is 20c degrees hot. That's our threshold */
-        const val LISTENING_THRESHOLD = 0.03
-        val SONAR_DATA_BUFFER_SIZE = min(ceil(SAMPLE_RATE * LISTENING_THRESHOLD).toInt(), RECORDING_SAMPLES.toInt())
+        val WINDOW_OVERLAP_EXTERIOR = WINDOW_SIZE - WINDOW_OVERLAP
+        const val FFT_BUFFER_SIZE = 2 * WINDOW_SIZE
+        /* This amount represents the maximum amount of samples we'd analyse.
+        * 0.03 = time it takes for sound to travel 10.29m in air that is 20c degrees hot. That's our threshold. */
+        val LISTENING_SAMPLES_THRESHOLD = min(ceil(SAMPLE_RATE * 0.03).toInt(), RECORDING_SAMPLES.toInt())
+        val SONAR_DATA_BUFFER_SIZE = floor(
+            (LISTENING_SAMPLES_THRESHOLD - 1) / WINDOW_OVERLAP_EXTERIOR
+        ).toInt()
     }
 }
