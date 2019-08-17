@@ -4,6 +4,7 @@ import android.Manifest
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.media.AudioTrack
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
+        setAmpChartGraphSettings(sonarAmplitudeChart)
         mSONARAmplitude.observe(this, Observer<LineData> {
             if (it == null)
                 return@Observer
@@ -61,6 +63,14 @@ class MainActivity : AppCompatActivity() {
         })
         Log.d(LOG_TAG, "App started")
     }
+
+    private fun setAmpChartGraphSettings(sonarAmplitudeChart: LineChart) {
+        sonarAmplitudeChart.axisLeft.axisMaximum = 1f
+        sonarAmplitudeChart.axisLeft.axisMinimum = -1f
+        sonarAmplitudeChart.axisRight.axisMaximum = 1f
+        sonarAmplitudeChart.axisRight.axisMinimum = -1f
+    }
+
 
     override fun onResume() {
         initTransmitter()
@@ -204,7 +214,9 @@ class MainActivity : AppCompatActivity() {
         val entries = ArrayList<Entry>()
         mSONARDataBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
         val dataSet = LineDataSet(entries, "SONAR Amplitude")
-        dataSet.color = 16515942
+        dataSet.color = Color.BLACK
+        dataSet.lineWidth = 1f
+        dataSet.valueTextSize = 0.5f
         mSONARAmplitude.postValue(LineData(dataSet))
     }
 
