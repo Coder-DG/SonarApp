@@ -3,6 +3,7 @@ package com.dginzbourg.sonarapp
 import android.Manifest
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.support.v7.app.AppCompatActivity
@@ -21,10 +22,14 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import org.jtransforms.fft.DoubleFFT_1D
+import java.io.File
+import java.io.FileWriter
+import java.util.*
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.collections.ArrayList
 import kotlin.math.*
 
 
@@ -192,7 +197,7 @@ class MainActivity : AppCompatActivity() {
         // distance to the user (because there's only one analysis running at a time).
         mAnalyzingLock.lock()
         Log.d(LOG_TAG, "Analyzing data...")
-
+        saveToFile(recorderBuffer)
         for (i in mSONARDataBuffer.indices) {
             val startPos = i * WINDOW_OVERLAP_EXTERIOR.toInt()
             val endPos = i * WINDOW_OVERLAP_EXTERIOR.toInt() + WINDOW_SIZE
@@ -210,6 +215,18 @@ class MainActivity : AppCompatActivity() {
         mAnalyzingLock.unlock()
     }
 
+    private fun saveToFile(recorderBuffer: ShortArray) = runOnUiThread {
+        val file = File(filesDir, "SonarApp_" + Calendar.getInstance().time.time)
+        file.createNewFile()
+        // TODO: Fix this
+        val writer = FileWriter(file)
+        writer.use { w ->
+            recorderBuffer.forEach {
+                w.write(it.toString() + '\n')
+            }
+        }
+    }
+
     private fun postLineData() {
         val entries = ArrayList<Entry>()
         mSONARDataBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
@@ -217,6 +234,7 @@ class MainActivity : AppCompatActivity() {
         dataSet.color = Color.BLACK
         dataSet.lineWidth = 1f
         dataSet.valueTextSize = 0.5f
+        dataSet.setDrawCircles(false)
         mSONARAmplitude.postValue(LineData(dataSet))
     }
 
