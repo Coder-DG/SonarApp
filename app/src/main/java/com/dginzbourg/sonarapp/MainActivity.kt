@@ -190,7 +190,7 @@ class MainActivity : AppCompatActivity() {
         * */
         // Only one thread at a time is allowed to use the buffer. This also simplifies how we deliver the relevant
         // distance to the user (because there's only one analysis running at a time).
-        mAnalyzingLock.tryLock()
+        mAnalyzingLock.lock()
         Log.d(LOG_TAG, "Analyzing data...")
 
         for (i in mSONARDataBuffer.indices) {
