@@ -9,6 +9,7 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.media.AudioTrack
 import android.media.AudioFormat
+import android.os.Handler
 import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
@@ -18,6 +19,7 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import org.jtransforms.fft.DoubleFFT_1D
+import java.lang.Thread.sleep
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -30,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
     private var executor: ExecutorService = Executors.newCachedThreadPool()
     private var mSONARDataBuffer = DoubleArray(SONAR_DATA_BUFFER_SIZE)
+    //private lateinit var mTempCalculator : TemperatureCalculator
 //    private var mFFT = DoubleFFT_1D(WINDOW_SIZE.toLong())
     private val mCyclicBarrier = CyclicBarrier(2) // 2 = transmitter and listener
     private val mAnalysisLock = ReentrantLock()
@@ -42,14 +45,15 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
+                        this,
+                        Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1234)
         }
 
         setContentView(R.layout.activity_main)
+        //mTempCalculator = TemperatureCalculator(this)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
         setAmpChartGraphSettings(sonarAmplitudeChart)
         mSONARAmplitude.observe(this, Observer<LineData> {
@@ -143,6 +147,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d(LOG_TAG, "Barrier interrupted inside the transmitter")
                 return@Thread
             }
+            mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
         }
         executor.submit(transmissionThread)
@@ -157,12 +162,13 @@ class MainActivity : AppCompatActivity() {
                 return@Thread
             }
             mListener.listen()
-            transmissionThread.join()
             mTransmitter.mAudioPlayer.stop()
             submitNextTransmissionCycle()
             mAnalysisLock.lock()
             mNoiseFilter.filterNoise()
-            mDistanceAnalyzer.analyze()
+            //val soundSpeed = 331 + 0.6 * mTempCalculator.getTemp()
+            val soundSpeed = 331 + 0.6 * 15
+            //mDistanceAnalyzer.analyze(soundSpeed)
             mAnalysisLock.unlock()
         })
     }
@@ -170,14 +176,17 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val MAIN_FREQUENCY: Double = 20000.0
+        const val MIN_CHIRP_FREQ = 4000.0
+        const val MAX_CHIRP_FREQ = 8000.0
+        const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         const val RECORDING_SAMPLES = SAMPLE_RATE
         val PLAYER_BUFFER_SIZE = AudioTrack.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
         ) / 2 // The size returned is in bytes, we use Shorts (2b each)
         // How much fade to apply to each side of the player buffer's data
         const val FADE_PERCENT = 0.05
@@ -189,7 +198,7 @@ class MainActivity : AppCompatActivity() {
         * 0.03 = time it takes for sound to travel 10.29m in air that is 20c degrees hot. That's our threshold. */
         val LISTENING_SAMPLES_THRESHOLD = min(ceil(SAMPLE_RATE * 0.03).toInt(), RECORDING_SAMPLES)
         val SONAR_DATA_BUFFER_SIZE = floor(
-            (LISTENING_SAMPLES_THRESHOLD - 1) / WINDOW_OVERLAP_EXTERIOR
+                (LISTENING_SAMPLES_THRESHOLD - 1) / WINDOW_OVERLAP_EXTERIOR
         ).toInt()
     }
 }

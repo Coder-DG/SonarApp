@@ -7,12 +7,12 @@ import android.util.Log
 
 class Listener {
     lateinit var mAudioRecorder: AudioRecord
-    var mRecorderBuffer = ShortArray(MainActivity.RECORDING_SAMPLES.toInt())
+    var mRecorderBuffer = ShortArray(MainActivity.RECORDING_SAMPLES)
 
 
     fun listen() {
         Log.d(MainActivity.LOG_TAG, "Listening...")
-        mAudioRecorder.startRecording()
+        //mAudioRecorder.startRecording()
         mAudioRecorder.read(mRecorderBuffer, 0, mRecorderBuffer.size)
         mAudioRecorder.stop()
     }
@@ -20,16 +20,16 @@ class Listener {
     fun init() {
         Log.d(MainActivity.LOG_TAG, "Initializing the Listener...")
         mAudioRecorder = AudioRecord.Builder()
-            .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(MainActivity.SAMPLE_RATE)
-                    .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
-                    .build()
-            )
-            .setBufferSizeInBytes(MainActivity.RECORDING_SAMPLES.toInt() * 2)
-            .build()
+                .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
+                .setAudioFormat(
+                        AudioFormat.Builder()
+                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                .setSampleRate(MainActivity.SAMPLE_RATE)
+                                .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                                .build()
+                )
+                .setBufferSizeInBytes(MainActivity.RECORDING_SAMPLES * 2)
+                .build()
         if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
             Log.e(MainActivity.LOG_TAG, "Unable to init recorder")
             // TODO: let the user know
