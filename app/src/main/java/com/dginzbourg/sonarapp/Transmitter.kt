@@ -33,9 +33,10 @@ class Transmitter {
     }
 
     fun transmit() {
-        Log.d(MainActivity.LOG_TAG, "Transmitting...")
+        Log.d(MainActivity.LOG_TAG, "Transmitting ${mPlayerBuffer.size} samples...")
         mAudioPlayer.write(mPlayerBuffer, 0, mPlayerBuffer.size)
         mAudioPlayer.play()
+        Log.d(MainActivity.LOG_TAG, "Sent transmission task.")
     }
 
     fun init() {
@@ -63,8 +64,8 @@ class Transmitter {
         // TODO: pad the beginning of the buffer with enough 0's so it'll fit in the listener's recording
 //        for (sampleIndex in mPlayerBuffer.indices) {
 //            mPlayerBuffer[sampleIndex] = (
-//                    sin(2 * PI * sampleIndex / 200) // The percentage of the max value
-//                            * 10).toShort()
+//                    sin(MainActivity.MAIN_FREQUENCY * 2 * PI * sampleIndex / MainActivity.SAMPLE_RATE) // The percentage of the max value
+//                            * Short.MAX_VALUE).toShort()
 //        }
 
         val numSamples = (MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).roundToInt()
