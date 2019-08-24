@@ -20,8 +20,6 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import org.jtransforms.fft.DoubleFFT_1D
 import java.lang.Thread.sleep
-import java.util.concurrent.CyclicBarrier
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
@@ -30,11 +28,10 @@ import kotlin.math.*
 
 class MainActivity : AppCompatActivity() {
     private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
-    private var executor: ExecutorService = Executors.newCachedThreadPool()
+    private var executor = Executors.newCachedThreadPool()
     private var mSONARDataBuffer = DoubleArray(SONAR_DATA_BUFFER_SIZE)
     //private lateinit var mTempCalculator : TemperatureCalculator
 //    private var mFFT = DoubleFFT_1D(WINDOW_SIZE.toLong())
-    private val mCyclicBarrier = CyclicBarrier(2) // 2 = transmitter and listener
     private val mAnalysisLock = ReentrantLock()
     private val mListener = Listener()
     private val mTransmitter = Transmitter()
@@ -138,35 +135,12 @@ class MainActivity : AppCompatActivity() {
 //        mSONARAmplitude.postValue(LineData(dataSet))
 //    }
 
-    private fun await(entity: String): Boolean {
-        try {
-            Log.d(LOG_TAG, "Waiting inside the $entity")
-            mCyclicBarrier.await()
-        } catch (ex: InterruptedException) {
-            Log.d(LOG_TAG, "Barrier interrupted inside the $entity")
-            return false
-        }
-        return true
-    }
-
     private fun submitNextTransmissionCycle() {
-        mCyclicBarrier.reset()
-        val transmissionThread = Thread {
+        val transmissionCycle = SonarThread(Runnable {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-            if (!await("Transmitter")) return@Thread
-
             mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
-        }
-        executor.submit(transmissionThread)
-
-        executor.submit(Thread {
-            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-            if (!await("Listener")) return@Thread
-
             mListener.listen()
-            Log.d(MainActivity.LOG_TAG, "Stopping transmission...")
-            transmissionThread.join()
             mTransmitter.mAudioPlayer.stop()
             submitNextTransmissionCycle()
             mAnalysisLock.lock()
@@ -177,8 +151,8 @@ class MainActivity : AppCompatActivity() {
             //mDistanceAnalyzer.analyze(soundSpeed)
             mAnalysisLock.unlock()
         })
+        executor.submit(transmissionCycle)
     }
-
 
     companion object {
         // TODO: go ultrasonic when this works (min: 20, max: 22)
