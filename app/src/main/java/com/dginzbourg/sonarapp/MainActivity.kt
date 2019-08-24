@@ -45,9 +45,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         if (ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.RECORD_AUDIO
-                ) != PackageManager.PERMISSION_GRANTED
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1234)
         }
@@ -125,28 +125,34 @@ class MainActivity : AppCompatActivity() {
 //        }
 //    }
 
-    private fun postLineData() {
-        val entries = ArrayList<Entry>()
-        mSONARDataBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
-        val dataSet = LineDataSet(entries, "SONAR Amplitude")
-        dataSet.color = Color.BLACK
-        dataSet.lineWidth = 1f
-        dataSet.valueTextSize = 0.5f
-        dataSet.setDrawCircles(false)
-        mSONARAmplitude.postValue(LineData(dataSet))
+//    private fun postLineData() {
+//        val entries = ArrayList<Entry>()
+//        mSONARDataBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
+//        val dataSet = LineDataSet(entries, "SONAR Amplitude")
+//        dataSet.color = Color.BLACK
+//        dataSet.lineWidth = 1f
+//        dataSet.valueTextSize = 0.5f
+//        dataSet.setDrawCircles(false)
+//        mSONARAmplitude.postValue(LineData(dataSet))
+//    }
+
+    private fun await(entity: String): Boolean {
+        try {
+            Log.d(LOG_TAG, "Waiting inside the $entity")
+            mCyclicBarrier.await()
+        } catch (ex: InterruptedException) {
+            Log.d(LOG_TAG, "Barrier interrupted inside the $entity")
+            return false
+        }
+        return true
     }
 
     private fun submitNextTransmissionCycle() {
         mCyclicBarrier.reset()
         val transmissionThread = Thread {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-            try {
-                Log.d(LOG_TAG, "Waiting for the Listener")
-                mCyclicBarrier.await()
-            } catch (ex: InterruptedException) {
-                Log.d(LOG_TAG, "Barrier interrupted inside the transmitter")
-                return@Thread
-            }
+            if (!await("Transmitter")) return@Thread
+
             mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
         }
@@ -154,18 +160,14 @@ class MainActivity : AppCompatActivity() {
 
         executor.submit(Thread {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-            try {
-                Log.d(LOG_TAG, "Waiting for the Transmitter")
-                mCyclicBarrier.await()
-            } catch (ex: InterruptedException) {
-                Log.d(LOG_TAG, "Barrier interrupted inside the listener")
-                return@Thread
-            }
+            if (!await("Listener")) return@Thread
+
             mListener.listen()
             mTransmitter.mAudioPlayer.stop()
             submitNextTransmissionCycle()
             mAnalysisLock.lock()
             mNoiseFilter.filterNoise()
+            // TODO: move speed of sound calculation to distance analyzer to a companion object (make it static)
             //val soundSpeed = 331 + 0.6 * mTempCalculator.getTemp()
             val soundSpeed = 331 + 0.6 * 15
             //mDistanceAnalyzer.analyze(soundSpeed)
@@ -176,20 +178,15 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val MAIN_FREQUENCY: Double = 20000.0
+        // TODO: go ultrasonic when this works (min: 20, max: 22)
         const val MIN_CHIRP_FREQ = 4000.0
         const val MAX_CHIRP_FREQ = 8000.0
+        // TODO: try shorten the chirp to try cover only 1m
         const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         const val RECORDING_SAMPLES = SAMPLE_RATE
-        val PLAYER_BUFFER_SIZE = AudioTrack.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-        ) / 2 // The size returned is in bytes, we use Shorts (2b each)
-        // How much fade to apply to each side of the player buffer's data
-        const val FADE_PERCENT = 0.05
         const val WINDOW_SIZE = 1024
         val WINDOW_OVERLAP = floor(0.5 * WINDOW_SIZE)
         val WINDOW_OVERLAP_EXTERIOR = WINDOW_SIZE - WINDOW_OVERLAP
@@ -198,7 +195,7 @@ class MainActivity : AppCompatActivity() {
         * 0.03 = time it takes for sound to travel 10.29m in air that is 20c degrees hot. That's our threshold. */
         val LISTENING_SAMPLES_THRESHOLD = min(ceil(SAMPLE_RATE * 0.03).toInt(), RECORDING_SAMPLES)
         val SONAR_DATA_BUFFER_SIZE = floor(
-                (LISTENING_SAMPLES_THRESHOLD - 1) / WINDOW_OVERLAP_EXTERIOR
+            (LISTENING_SAMPLES_THRESHOLD - 1) / WINDOW_OVERLAP_EXTERIOR
         ).toInt()
     }
 }

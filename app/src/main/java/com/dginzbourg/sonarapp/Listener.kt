@@ -12,7 +12,6 @@ class Listener {
 
     fun listen() {
         Log.d(MainActivity.LOG_TAG, "Listening...")
-        //mAudioRecorder.startRecording()
         mAudioRecorder.read(mRecorderBuffer, 0, mRecorderBuffer.size)
         mAudioRecorder.stop()
     }

@@ -5,10 +5,17 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import android.util.Log
 import org.jtransforms.fft.FloatFFT_1D
-import kotlin.math.floor
-import kotlin.math.sin
+import kotlin.math.*
 
 class Transmitter {
+
+    companion object {
+        val PLAYER_BUFFER_SIZE = AudioTrack.getMinBufferSize(
+            MainActivity.SAMPLE_RATE,
+            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT
+        ) / 2 // The size returned is in bytes, we use Shorts (2b each)
+    }
 
     lateinit var mAudioPlayer: AudioTrack
     // t1 < 1 second
@@ -33,35 +40,41 @@ class Transmitter {
     fun init() {
         Log.d(MainActivity.LOG_TAG, "Initializing the Transmitter...")
         mAudioPlayer = AudioTrack.Builder()
-                .setAudioAttributes(
-                        AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_MEDIA)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                .build()
-                )
-                .setAudioFormat(
-                        AudioFormat.Builder()
-                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                                .setSampleRate(MainActivity.SAMPLE_RATE)
-                                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                                .build()
-                )
-                .setTransferMode(AudioTrack.MODE_STATIC)
-                .setBufferSizeInBytes(MainActivity.PLAYER_BUFFER_SIZE * 2) // This is in bytes and we use Short
-                .build()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setSampleRate(MainActivity.SAMPLE_RATE)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build()
+            )
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .setBufferSizeInBytes(PLAYER_BUFFER_SIZE * 2) // This is in bytes and we use Short
+            .build()
 
         // TODO: check that the audio player has been initialized properly
 
         // TODO: pad the beginning of the buffer with enough 0's so it'll fit in the listener's recording
 //        for (sampleIndex in mPlayerBuffer.indices) {
 //            mPlayerBuffer[sampleIndex] = (
-//                    sin(MainActivity.MAIN_FREQUENCY * 2 * Math.PI * sampleIndex / MainActivity.SAMPLE_RATE) // The percentage of the max value
+//                    sin(MainActivity.MAIN_FREQUENCY * 2 * PI * sampleIndex / MainActivity.SAMPLE_RATE) // The percentage of the max value
 //                            * Short.MAX_VALUE).toShort()
 //        }
 
-        val numSamples = Math.round(MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).toInt()
-        mPlayerBuffer = convertToShort(hanningWindow(chirp(0.0, MainActivity.MIN_CHIRP_FREQ,
-                MainActivity.MAX_CHIRP_FREQ, MainActivity.CHIRP_DURATION, MainActivity.SAMPLE_RATE.toDouble()), numSamples))
+        val numSamples = (MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).roundToInt()
+        mPlayerBuffer = convertToShort(
+            hanningWindow(
+                chirp(
+                    0.0, MainActivity.MIN_CHIRP_FREQ,
+                    MainActivity.MAX_CHIRP_FREQ, MainActivity.CHIRP_DURATION, MainActivity.SAMPLE_RATE.toDouble()
+                ), numSamples
+            )
+        )
         //applyFade(floor(mPlayerBuffer.size * MainActivity.FADE_PERCENT).toInt())
 
         // TODO: check return value
@@ -70,15 +83,15 @@ class Transmitter {
         //F.complexForward()
     }
 
-    private fun chirp(phase: Double, f0: Double, f1: Double, t1: Double, samplingFreq: Double) : DoubleArray {
+    private fun chirp(phase: Double, f0: Double, f1: Double, t1: Double, samplingFreq: Double): DoubleArray {
         val k = (f1 - f0) / t1
-        val samples = Math.ceil(t1 * samplingFreq).toInt() + 1
+        val samples = ceil(t1 * samplingFreq).toInt() + 1
         val chirp = DoubleArray(samples)
         val inc = 1 / samplingFreq
         var t = 0.0
         for (index in chirp.indices) {
             if (t <= t1) {
-                chirp[index] = Math.sin(phase + 2.0 * Math.PI * (f0 * t + k / 2 * t * t))
+                chirp[index] = sin(phase + 2.0 * PI * (f0 * t + t.pow(2.0) * k / 2))
                 t += inc
             }
         }
@@ -88,7 +101,7 @@ class Transmitter {
 
     private fun hanningWindow(signal_in: DoubleArray, size: Int): DoubleArray {
         for (i in 0 until size) {
-            signal_in[i] = signal_in[i] * 0.5 * (1.0 - Math.cos(2.0 * Math.PI * i.toDouble() / size))
+            signal_in[i] = signal_in[i] * 0.5 * (1.0 - cos(2.0 * PI * i.toDouble() / size))
         }
         return signal_in
     }
