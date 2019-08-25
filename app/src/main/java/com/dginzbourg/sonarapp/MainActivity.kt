@@ -73,8 +73,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         mTransmitter.init()
         mListener.init()
-        // TODO: Add a check to see if any errors are thrown within the thread execution. Currently there's an
-        //  IllegalState error when trying to invoke mTransmitter.mAudioPlayer.stop() in the listener thread.
         submitNextTransmissionCycle()
         super.onResume()
     }
@@ -142,7 +140,6 @@ class MainActivity : AppCompatActivity() {
             mTransmitter.transmit()
             mListener.listen()
             Log.d(MainActivity.LOG_TAG, "Stopping transmission...")
-            transmissionThread.join()
             mTransmitter.mAudioPlayer.stop()
             submitNextTransmissionCycle()
             mAnalysisLock.lock()
