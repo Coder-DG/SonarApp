@@ -29,7 +29,7 @@ class NoiseFilter {
         // Filling up the real values, leaving the imaginary values as 0's
         pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i * 2] = sh.toDouble() }
         for (i in firstSampleIndex until recordedBuffer.size) {
-            recordedDoubleBuffer[i * 2] = recordedBuffer[i].toDouble()
+            recordedDoubleBuffer[(i - firstSampleIndex) * 2] = recordedBuffer[i].toDouble()
         }
 
         // TODO: maybe we should use Floats instead? Or normalize the amplitude data to be between -1 and 1?
