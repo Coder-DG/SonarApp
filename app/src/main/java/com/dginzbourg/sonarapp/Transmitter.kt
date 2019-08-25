@@ -19,7 +19,8 @@ class Transmitter {
 
     lateinit var mAudioPlayer: AudioTrack
     // t1 < 1 second
-    var mPlayerBuffer = ShortArray(MainActivity.SAMPLE_RATE)
+    //var mPlayerBuffer = ShortArray(MainActivity.SAMPLE_RATE)
+    var mPlayerBuffer = ShortArray(16384)
 
     private fun applyFade(framesToFade: Int) {
         var fadeFactor: Double
@@ -80,8 +81,6 @@ class Transmitter {
 
         // TODO: check return value
         mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
-        //val F = FloatFFT_1D(1)
-        //F.complexForward()
     }
 
     private fun chirp(phase: Double, f0: Double, f1: Double, t1: Double, samplingFreq: Double): DoubleArray {
