@@ -56,12 +56,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setAmpChartGraphSettings(sonarAmplitudeChart: LineChart) {
-        val maxValue = 2e9f
+        // This sets the zoom levels so we won't have to zoom in or out
+        val maxValue = 4e10f
         val minValue = 0f
         sonarAmplitudeChart.axisLeft.axisMaximum = maxValue
         sonarAmplitudeChart.axisLeft.axisMinimum = minValue
         sonarAmplitudeChart.axisRight.axisMaximum = maxValue
         sonarAmplitudeChart.axisRight.axisMinimum = minValue
+        sonarAmplitudeChart.xAxis.axisMinimum = 0f
+        sonarAmplitudeChart.xAxis.axisMaximum = RECORDING_SAMPLES.toFloat()
     }
 
 

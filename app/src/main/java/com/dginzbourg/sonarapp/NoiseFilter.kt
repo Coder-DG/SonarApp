@@ -2,6 +2,7 @@ package com.dginzbourg.sonarapp
 
 import org.apache.commons.math3.complex.Complex
 import org.jtransforms.fft.DoubleFFT_1D
+import kotlin.math.roundToInt
 
 class NoiseFilter {
     companion object {
@@ -32,13 +33,16 @@ class NoiseFilter {
             recordedDoubleBuffer[(i - firstSampleIndex) * 2] = recordedBuffer[i].toDouble()
         }
 
-        // TODO: maybe we should use Floats instead? Or normalize the amplitude data to be between -1 and 1?
-        //  we might get more precision out of Float if we are using big values
         val fftCalculator = DoubleFFT_1D(n.toLong())
         var correlation = crossCorrelation(fftCalculator, pulseDoubleBuffer, recordedDoubleBuffer, n)
         correlation = correlation.map { if (it > CROSS_CORRELATION_SOUND_THRESHOLD) it else 0.0 }.toDoubleArray()
 
-        return correlation
+        // EXPERIMENTAL: Trim everything that came before the chirp (gives an insight to the data we're dealing with)
+        val chirpMiddle = correlation.indexOfFirst { it == correlation.max() }
+        val chirpStart = chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5
+        if (chirpStart < 0) return correlation
+
+        return correlation.sliceArray(chirpStart.roundToInt() until correlation.size)
     }
 
     private fun crossCorrelation(
