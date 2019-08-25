@@ -7,9 +7,6 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.media.AudioTrack
-import android.media.AudioFormat
-import android.os.Handler
 import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
@@ -18,8 +15,6 @@ import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import org.jtransforms.fft.DoubleFFT_1D
-import java.lang.Thread.sleep
 import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
@@ -29,7 +24,6 @@ import kotlin.math.*
 class MainActivity : AppCompatActivity() {
     private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
     private var executor = Executors.newCachedThreadPool()
-    private var mSONARDataBuffer = DoubleArray(SONAR_DATA_BUFFER_SIZE)
     //private lateinit var mTempCalculator : TemperatureCalculator
 //    private var mFFT = DoubleFFT_1D(WINDOW_SIZE.toLong())
     private val mAnalysisLock = ReentrantLock()
@@ -63,10 +57,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setAmpChartGraphSettings(sonarAmplitudeChart: LineChart) {
-        sonarAmplitudeChart.axisLeft.axisMaximum = 1f
-        sonarAmplitudeChart.axisLeft.axisMinimum = -1f
-        sonarAmplitudeChart.axisRight.axisMaximum = 1f
-        sonarAmplitudeChart.axisRight.axisMinimum = -1f
+        sonarAmplitudeChart.axisLeft.axisMaximum = Short.MAX_VALUE.toFloat()
+        sonarAmplitudeChart.axisLeft.axisMinimum = Short.MIN_VALUE.toFloat()
+        sonarAmplitudeChart.axisRight.axisMaximum = Short.MAX_VALUE.toFloat()
+        sonarAmplitudeChart.axisRight.axisMinimum = Short.MIN_VALUE.toFloat()
     }
 
 
@@ -107,7 +101,7 @@ class MainActivity : AppCompatActivity() {
 //            * this is the right calculation */
 //            mSONARDataBuffer[i] = mAnalyzerBuffer[(MAIN_FREQUENCY / (SAMPLE_RATE / 2.0 / WINDOW_SIZE)).toInt()]
 //        }
-//        postLineData()
+//        postSoundRecording()
 //        mAnalyzingLock.unlock()
 //    }
 
@@ -122,16 +116,16 @@ class MainActivity : AppCompatActivity() {
 //        }
 //    }
 
-//    private fun postLineData() {
-//        val entries = ArrayList<Entry>()
-//        mSONARDataBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
-//        val dataSet = LineDataSet(entries, "SONAR Amplitude")
-//        dataSet.color = Color.BLACK
-//        dataSet.lineWidth = 1f
-//        dataSet.valueTextSize = 0.5f
-//        dataSet.setDrawCircles(false)
-//        mSONARAmplitude.postValue(LineData(dataSet))
-//    }
+    private fun postSoundRecording() {
+        val entries = ArrayList<Entry>()
+        mListener.mRecorderBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
+        val dataSet = LineDataSet(entries, "SONAR Amplitude")
+        dataSet.color = Color.BLACK
+        dataSet.lineWidth = 1f
+        dataSet.valueTextSize = 0.5f
+        dataSet.setDrawCircles(false)
+        mSONARAmplitude.postValue(LineData(dataSet))
+    }
 
     private fun submitNextTransmissionCycle() {
         val transmissionCycle = SonarThread(Runnable {
@@ -143,6 +137,7 @@ class MainActivity : AppCompatActivity() {
             mTransmitter.mAudioPlayer.stop()
             submitNextTransmissionCycle()
             mAnalysisLock.lock()
+            postSoundRecording()
             mNoiseFilter.filterNoise()
             // TODO: move speed of sound calculation to distance analyzer to a companion object (make it static)
             //val soundSpeed = 331 + 0.6 * mTempCalculator.getTemp()
