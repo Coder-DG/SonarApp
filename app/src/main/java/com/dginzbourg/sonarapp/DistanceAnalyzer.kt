@@ -47,6 +47,7 @@ class DistanceAnalyzer {
         pulseBuffer: ShortArray,
         noiseThreshold: Short
     ): DoubleArray {
+        // TODO: Why not trim this after the cross correlation graph calculation? Not sure what does this give us
         // find first index of recorded buffer where it starts recording the transmitting signal
         var index = 0
         for (recordIndex in recordedBuffer.indices) {
