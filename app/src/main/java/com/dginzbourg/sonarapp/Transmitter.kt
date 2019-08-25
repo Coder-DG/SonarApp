@@ -4,7 +4,6 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.util.Log
-import org.jtransforms.fft.FloatFFT_1D
 import kotlin.math.*
 
 class Transmitter {
@@ -21,16 +20,6 @@ class Transmitter {
     // t1 < 1 second
     //var mPlayerBuffer = ShortArray(MainActivity.SAMPLE_RATE)
     var mPlayerBuffer = ShortArray(16384)
-
-    private fun applyFade(framesToFade: Int) {
-        var fadeFactor: Double
-        for (i in 0..framesToFade) {
-            fadeFactor = i.toDouble() / framesToFade
-            mPlayerBuffer[i] = (mPlayerBuffer[i] * fadeFactor).toShort()
-            mPlayerBuffer[mPlayerBuffer.size - i - 1] = (mPlayerBuffer[mPlayerBuffer.size - i - 1]
-                    * fadeFactor).toShort()
-        }
-    }
 
     fun transmit() {
         Log.d(MainActivity.LOG_TAG, "Transmitting ${mPlayerBuffer.size} samples...")
@@ -71,18 +60,15 @@ class Transmitter {
         mPlayerBuffer = convertToShort(
             hanningWindow(
                 chirp(
-                    0.0, MainActivity.MIN_CHIRP_FREQ,
+                    MainActivity.MIN_CHIRP_FREQ,
                     MainActivity.MAX_CHIRP_FREQ, MainActivity.CHIRP_DURATION, MainActivity.SAMPLE_RATE.toDouble()
                 ), numSamples
             )
         )
-        //applyFade(floor(mPlayerBuffer.size * MainActivity.FADE_PERCENT).toInt())
-
-        // TODO: check return value
         mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
     }
 
-    private fun chirp(phase: Double, f0: Double, f1: Double, t1: Double, samplingFreq: Double): DoubleArray {
+    private fun chirp(f0: Double, f1: Double, t1: Double, samplingFreq: Double): DoubleArray {
         val k = (f1 - f0) / t1
         val samples = ceil(t1 * samplingFreq).toInt() + 1
         val chirp = DoubleArray(samples)
@@ -90,7 +76,7 @@ class Transmitter {
         var t = 0.0
         for (index in chirp.indices) {
             if (t <= t1) {
-                chirp[index] = sin(phase + 2.0 * PI * (f0 * t + t.pow(2.0) * k / 2))
+                chirp[index] = sin(2.0 * PI * (f0 * t + t.pow(2.0) * k / 2))
                 t += inc
             }
         }
