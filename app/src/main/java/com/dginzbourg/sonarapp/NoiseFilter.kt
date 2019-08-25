@@ -27,8 +27,10 @@ class NoiseFilter {
         val recordedDoubleBuffer = DoubleArray(n * 2)
         val pulseDoubleBuffer = DoubleArray(n * 2)
         // Filling up the real values, leaving the imaginary values as 0's
-        recordedBuffer.forEachIndexed { i, sh -> recordedDoubleBuffer[i * 2] = sh.toDouble() }
         pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i * 2] = sh.toDouble() }
+        for (i in firstSampleIndex until recordedBuffer.size) {
+            recordedDoubleBuffer[i * 2] = recordedBuffer[i].toDouble()
+        }
 
         // TODO: maybe we should use Floats instead? Or normalize the amplitude data to be between -1 and 1?
         //  we might get more precision out of Float if we are using big values
