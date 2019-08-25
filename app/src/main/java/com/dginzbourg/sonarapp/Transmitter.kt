@@ -19,6 +19,8 @@ class Transmitter {
     lateinit var mAudioPlayer: AudioTrack
     // t1 < 1 second
     //var mPlayerBuffer = ShortArray(MainActivity.SAMPLE_RATE)
+    // TODO: add naming to constants
+    // TODO: isn't this suppose to be PLAYER_BUFFER_SIZE? That's the minimum size.
     var mPlayerBuffer = ShortArray(16384)
 
     fun transmit() {
