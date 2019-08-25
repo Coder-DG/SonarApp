@@ -93,7 +93,7 @@ class MainActivity : AppCompatActivity() {
 //        for (i in mSONARDataBuffer.indices) {
 //            val startPos = i * WINDOW_OVERLAP_EXTERIOR.toInt()
 //            val endPos = i * WINDOW_OVERLAP_EXTERIOR.toInt() + WINDOW_SIZE
-//            for (indexInWindow in startPos..endPos) {
+//            for (indexInWindow in startPos until endPos) {
 //                // Normalize data and copy to mAnalyzerBuffer
 //                mAnalyzerBuffer[indexInWindow - startPos] = recorderBuffer[indexInWindow] / Short.MAX_VALUE.toDouble()
 //            }

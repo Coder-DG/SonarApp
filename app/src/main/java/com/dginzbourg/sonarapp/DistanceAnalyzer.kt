@@ -1,5 +1,6 @@
 package com.dginzbourg.sonarapp
 
+import org.apache.commons.math3.complex.Complex
 import org.jtransforms.fft.DoubleFFT_1D
 import java.lang.Math.min
 
@@ -65,23 +66,32 @@ class DistanceAnalyzer {
         // trim the recorded buffer to not include the start noise
 //        val recordedBuffer = recordedBuffer.slice(index..(index + MainActivity.RECORDING_SAMPLES))
         val n = recordedBuffer.size
-        val pulse = DoubleFFT_1D(n.toLong() * 2)
-        val record = DoubleFFT_1D(n.toLong() * 2)
-        val pulseDoubleBuffer = DoubleArray(n)
+        val fftCalculator = DoubleFFT_1D(n.toLong())
+        val pulseDoubleBuffer = DoubleArray(n * 2)
         // Pulse is much shorter than pulseDoubleBuffer.size
         pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i] = sh.toDouble() }
-        val recordedDoubleBuffer = recordedBuffer.map { it.toDouble() }.toDoubleArray()
+        val recordedDoubleBuffer = DoubleArray(n * 2)
+        // Filling up the real values, leaving the imaginary values as 0's
+        recordedBuffer.forEachIndexed { i, sh -> recordedDoubleBuffer[i] = sh.toDouble() }
 
         // calculate the correlation according to: inverse_fft(fft(record).conjugate * fft(pulse))
-        pulse.complexForward(pulseDoubleBuffer)
-        record.complexForward(recordedDoubleBuffer)
-        val correlation = DoubleArray(16384)
-        for (i in 0 until 16384) {
-            // TODO: pulse numbers need to be conjugated before the multiplication
-            correlation[i] = pulseDoubleBuffer[i] * recordedDoubleBuffer[i]
+        fftCalculator.complexForward(pulseDoubleBuffer)
+        fftCalculator.complexForward(recordedDoubleBuffer)
+        // TODO: correct multiplication, currently this isn't a correct complex number multiplication
+        val correlation = DoubleArray(n * 2)
+        var pComplex: Complex
+        var rComplex: Complex
+        var mulResult: Complex
+        for (i in 0 until n step 2) {
+            pComplex = Complex(pulseDoubleBuffer[i], pulseDoubleBuffer[i + 1])
+            rComplex = Complex(recordedDoubleBuffer[i], recordedDoubleBuffer[i + 1])
+            mulResult = pComplex.conjugate() * rComplex
+            correlation[i] = mulResult.real
+            correlation[i + 1] = mulResult.imaginary
         }
 
-        record.complexInverse(correlation, true)
+        // TODO: are you sure about the scaling? I still don't know what it does
+        fftCalculator.complexInverse(correlation, true)
         return correlation
     }
 }
