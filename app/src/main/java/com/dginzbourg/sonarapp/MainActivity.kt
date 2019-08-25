@@ -139,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
             mListener.listen()
-            Log.d(MainActivity.LOG_TAG, "Stopping transmission...")
+            Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
             submitNextTransmissionCycle()
             mAnalysisLock.lock()

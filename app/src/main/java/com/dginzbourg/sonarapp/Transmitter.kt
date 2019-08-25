@@ -59,9 +59,8 @@ class Transmitter {
             .setBufferSizeInBytes(PLAYER_BUFFER_SIZE * 2) // This is in bytes and we use Short
             .build()
 
-        // TODO: check that the audio player has been initialized properly
+        // TODO: check that the audio player has been initialized properly, else notify the user
 
-        // TODO: pad the beginning of the buffer with enough 0's so it'll fit in the listener's recording
 //        for (sampleIndex in mPlayerBuffer.indices) {
 //            mPlayerBuffer[sampleIndex] = (
 //                    sin(MainActivity.MAIN_FREQUENCY * 2 * PI * sampleIndex / MainActivity.SAMPLE_RATE) // The percentage of the max value
