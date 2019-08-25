@@ -9,19 +9,14 @@ import kotlin.math.*
 class Transmitter {
 
     companion object {
-        val PLAYER_BUFFER_SIZE = AudioTrack.getMinBufferSize(
-            MainActivity.SAMPLE_RATE,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        ) / 2 // The size returned is in bytes, we use Shorts (2b each)
+        val PLAYER_BUFFER_SIZE = ceil(MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).toInt()
     }
 
     lateinit var mAudioPlayer: AudioTrack
     // t1 < 1 second
     //var mPlayerBuffer = ShortArray(MainActivity.SAMPLE_RATE)
     // TODO: add naming to constants
-    // TODO: isn't this suppose to be PLAYER_BUFFER_SIZE? That's the minimum size.
-    var mPlayerBuffer = ShortArray(16384)
+    lateinit var mPlayerBuffer: ShortArray
 
     fun transmit() {
         Log.d(MainActivity.LOG_TAG, "Transmitting ${mPlayerBuffer.size} samples...")
@@ -52,15 +47,15 @@ class Transmitter {
 
         // TODO: check that the audio player has been initialized properly, else notify the user
 
-        val numSamples = (MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).roundToInt()
-        mPlayerBuffer = convertToShort(
-            hanningWindow(
-                chirp(
-                    MainActivity.MIN_CHIRP_FREQ,
-                    MainActivity.MAX_CHIRP_FREQ, MainActivity.CHIRP_DURATION, MainActivity.SAMPLE_RATE.toDouble()
-                ), numSamples
+        mPlayerBuffer =
+            chirp(
+                MainActivity.MIN_CHIRP_FREQ,
+                MainActivity.MAX_CHIRP_FREQ,
+                MainActivity.CHIRP_DURATION,
+                MainActivity.SAMPLE_RATE.toDouble()
             )
-        )
+                .mapIndexed { i, d -> hanningWindow(i, d) }
+                .map { (it * Short.MAX_VALUE).toShort() }.toShortArray()
         mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
     }
 
@@ -80,29 +75,7 @@ class Transmitter {
         return chirp
     }
 
-    private fun hanningWindow(signal_in: DoubleArray, size: Int): DoubleArray {
-        for (i in 0 until size) {
-            signal_in[i] = signal_in[i] * 0.5 * (1.0 - cos(2.0 * PI * i.toDouble() / size))
-        }
-        return signal_in
-    }
+    private fun hanningWindow(index: Int, double: Double) = double * 0.5 *
+            (1.0 - cos(2.0 * PI * index.toDouble() / PLAYER_BUFFER_SIZE))
 
-    private fun padSignal(signal: DoubleArray, length: Int, position: Int): DoubleArray {
-        val newSignal = DoubleArray(length)
-        val siglen = signal.size
-        for (i in 0 until siglen) {
-            newSignal[i + position] = signal[i]
-        }
-        return newSignal
-
-    }
-
-    private fun convertToShort(signal_in: DoubleArray): ShortArray {
-        val generatedSnd = ShortArray(signal_in.size)
-        for ((idx, dVal) in signal_in.withIndex()) {
-            val `val` = (dVal * 32767).toShort()
-            generatedSnd[idx] = `val`
-        }
-        return generatedSnd
-    }
 }
