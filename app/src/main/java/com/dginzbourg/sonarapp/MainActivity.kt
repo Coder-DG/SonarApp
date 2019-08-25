@@ -56,10 +56,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setAmpChartGraphSettings(sonarAmplitudeChart: LineChart) {
-        sonarAmplitudeChart.axisLeft.axisMaximum = Short.MAX_VALUE.toFloat()
-        sonarAmplitudeChart.axisLeft.axisMinimum = Short.MIN_VALUE.toFloat()
-        sonarAmplitudeChart.axisRight.axisMaximum = Short.MAX_VALUE.toFloat()
-        sonarAmplitudeChart.axisRight.axisMinimum = Short.MIN_VALUE.toFloat()
+        val maxValue = 2e9f
+        val minValue = 0f
+        sonarAmplitudeChart.axisLeft.axisMaximum = maxValue
+        sonarAmplitudeChart.axisLeft.axisMinimum = minValue
+        sonarAmplitudeChart.axisRight.axisMaximum = maxValue
+        sonarAmplitudeChart.axisRight.axisMinimum = minValue
     }
 
 
