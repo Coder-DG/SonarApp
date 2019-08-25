@@ -18,17 +18,14 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import java.util.concurrent.Executors
-import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
 import kotlin.math.*
 
-
+// TODO: Performance enhancements
 class MainActivity : AppCompatActivity() {
     private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
     private var executor = Executors.newCachedThreadPool()
     //private lateinit var mTempCalculator : TemperatureCalculator
-//    private var mFFT = DoubleFFT_1D(WINDOW_SIZE.toLong())
-    private val mAnalysisLock = ReentrantLock()
     private val mListener = Listener()
     private val mTransmitter = Transmitter()
     private val mDistanceAnalyzer = DistanceAnalyzer()
@@ -103,7 +100,7 @@ class MainActivity : AppCompatActivity() {
 //            * this is the right calculation */
 //            mSONARDataBuffer[i] = mAnalyzerBuffer[(MAIN_FREQUENCY / (SAMPLE_RATE / 2.0 / WINDOW_SIZE)).toInt()]
 //        }
-//        postSoundRecording()
+//        postFilteredCrossCorrelation()
 //        mAnalyzingLock.unlock()
 //    }
 
@@ -118,9 +115,9 @@ class MainActivity : AppCompatActivity() {
 //        }
 //    }
 
-    private fun postSoundRecording() {
+    private fun postFilteredCrossCorrelation(filteredRecording: DoubleArray) {
         val entries = ArrayList<Entry>()
-        mListener.mRecorderBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
+        filteredRecording.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
         val dataSet = LineDataSet(entries, "SONAR Amplitude")
         dataSet.color = Color.BLACK
         dataSet.lineWidth = 1f
@@ -137,15 +134,16 @@ class MainActivity : AppCompatActivity() {
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
-            submitNextTransmissionCycle()
-            mAnalysisLock.lock()
-            postSoundRecording()
-            mNoiseFilter.filterNoise()
+            val filteredRecording = mNoiseFilter.filterNoise(
+                recordedBuffer = mListener.mRecorderBuffer,
+                pulseBuffer = mTransmitter.mPlayerBuffer
+            )
+            postFilteredCrossCorrelation(filteredRecording)
             // TODO: move speed of sound calculation to distance analyzer to a companion object (make it static)
             //val soundSpeed = 331 + 0.6 * mTempCalculator.getTemp()
             val soundSpeed = 331 + 0.6 * 15
             //mDistanceAnalyzer.analyze(soundSpeed)
-            mAnalysisLock.unlock()
+            submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
     }
