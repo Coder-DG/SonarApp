@@ -50,12 +50,6 @@ class Transmitter {
 
         // TODO: check that the audio player has been initialized properly, else notify the user
 
-//        for (sampleIndex in mPlayerBuffer.indices) {
-//            mPlayerBuffer[sampleIndex] = (
-//                    sin(MainActivity.MAIN_FREQUENCY * 2 * PI * sampleIndex / MainActivity.SAMPLE_RATE) // The percentage of the max value
-//                            * Short.MAX_VALUE).toShort()
-//        }
-
         val numSamples = (MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).roundToInt()
         mPlayerBuffer = convertToShort(
             hanningWindow(
