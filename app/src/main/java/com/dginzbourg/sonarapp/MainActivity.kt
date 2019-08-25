@@ -175,8 +175,5 @@ class MainActivity : AppCompatActivity() {
         /* This amount represents the maximum amount of samples we'd analyse.
         * 0.03 = time it takes for sound to travel 10.29m in air that is 20c degrees hot. That's our threshold. */
         val LISTENING_SAMPLES_THRESHOLD = min(ceil(SAMPLE_RATE * 0.03).toInt(), RECORDING_SAMPLES)
-        val SONAR_DATA_BUFFER_SIZE = floor(
-            (LISTENING_SAMPLES_THRESHOLD - 1) / WINDOW_OVERLAP_EXTERIOR
-        ).toInt()
     }
 }

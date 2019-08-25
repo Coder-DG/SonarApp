@@ -7,6 +7,7 @@ class DistanceAnalyzer {
     companion object {
         const val BASE_SOUND_SPEED = 331
     }
+
     fun analyze(
         recordedBuffer: ShortArray,
         pulseBuffer: ShortArray,
@@ -47,7 +48,7 @@ class DistanceAnalyzer {
         pulseBuffer: ShortArray,
         noiseThreshold: Short
     ): DoubleArray {
-        // TODO: Why not trim this after the cross correlation graph calculation? Not sure what does this give us
+        // TODO: Why not trim this after the cross correlation graph calculation? Not sure what this give us
         // find first index of recorded buffer where it starts recording the transmitting signal
         var index = 0
         for (recordIndex in recordedBuffer.indices) {
@@ -62,23 +63,21 @@ class DistanceAnalyzer {
         }
 
         // trim the recorded buffer to not include the start noise
-        val recordedBuffer = recordedBuffer.slice(index..(index + 16383))
-        val pulse = DoubleFFT_1D(16834 + 1)
-        val record = DoubleFFT_1D(16384 + 1)
-        val pulseDoubleBuffer = DoubleArray(16384 + 1)
-        val recordedDoubleBuffer = DoubleArray(16384 + 1)
-
-        // from short to double arrays
-        for (i in 0 until pulseBuffer.size) {
-            pulseDoubleBuffer[i] = pulseBuffer[i].toDouble()
-            recordedDoubleBuffer[i] = recordedBuffer[i].toDouble()
-        }
+//        val recordedBuffer = recordedBuffer.slice(index..(index + MainActivity.RECORDING_SAMPLES))
+        val n = recordedBuffer.size
+        val pulse = DoubleFFT_1D(n.toLong() * 2)
+        val record = DoubleFFT_1D(n.toLong() * 2)
+        val pulseDoubleBuffer = DoubleArray(n)
+        // Pulse is much shorter than pulseDoubleBuffer.size
+        pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i] = sh.toDouble() }
+        val recordedDoubleBuffer = recordedBuffer.map { it.toDouble() }.toDoubleArray()
 
         // calculate the correlation according to: inverse_fft(fft(record) * fft(pulse))
         pulse.complexForward(pulseDoubleBuffer)
         record.complexForward(recordedDoubleBuffer)
         val correlation = DoubleArray(16384)
         for (i in 0 until 16384) {
+            // TODO: pulse numbers need to be conjugated before the multiplication
             correlation[i] = pulseDoubleBuffer[i] * recordedDoubleBuffer[i]
         }
 
