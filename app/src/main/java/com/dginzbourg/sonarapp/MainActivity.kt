@@ -168,12 +168,5 @@ class MainActivity : AppCompatActivity() {
             // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
             SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
         ).roundToInt()
-        const val WINDOW_SIZE = 1024
-        val WINDOW_OVERLAP = floor(0.5 * WINDOW_SIZE)
-        val WINDOW_OVERLAP_EXTERIOR = WINDOW_SIZE - WINDOW_OVERLAP
-        const val FFT_BUFFER_SIZE = 2 * WINDOW_SIZE
-        /* This amount represents the maximum amount of samples we'd analyse.
-        * 0.03 = time it takes for sound to travel 10.29m in air that is 20c degrees hot. That's our threshold. */
-        val LISTENING_SAMPLES_THRESHOLD = min(ceil(SAMPLE_RATE * 0.03).toInt(), RECORDING_SAMPLES)
     }
 }
