@@ -7,6 +7,8 @@ import java.lang.Math.min
 class DistanceAnalyzer {
     companion object {
         const val BASE_SOUND_SPEED = 331
+        // TODO: change that to the correct value (or find a value)
+        const val RECORDING_NOISE_THRESHOLD = 10
     }
 
     fun analyze(
@@ -46,38 +48,29 @@ class DistanceAnalyzer {
 
     private fun crossCorrelation(
         recordedBuffer: ShortArray,
-        pulseBuffer: ShortArray,
-        noiseThreshold: Short
+        pulseBuffer: ShortArray
     ): DoubleArray {
-        // TODO: Why not trim this after the cross correlation graph calculation? Not sure what this give us
         // find first index of recorded buffer where it starts recording the transmitting signal
-        var index = 0
-        for (recordIndex in recordedBuffer.indices) {
-            if (recordedBuffer[recordIndex] > noiseThreshold) {
-                index = recordIndex
-                break
-            }
-        }
+        val firstSampleIndex = recordedBuffer.indexOfFirst { it > RECORDING_NOISE_THRESHOLD }
 
-        if (index >= 16383) {
+        if (firstSampleIndex == -1 || firstSampleIndex == recordedBuffer.lastIndex) {
             // todo fail
         }
 
-        // trim the recorded buffer to not include the start noise
-//        val recordedBuffer = recordedBuffer.slice(index..(index + MainActivity.RECORDING_SAMPLES))
-        val n = recordedBuffer.size
-        val fftCalculator = DoubleFFT_1D(n.toLong())
-        val pulseDoubleBuffer = DoubleArray(n * 2)
-        // Pulse is much shorter than pulseDoubleBuffer.size
-        pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i] = sh.toDouble() }
+        // Trim the recorded buffer to not include the start noise and 0's
+        val n = recordedBuffer.size - firstSampleIndex
         val recordedDoubleBuffer = DoubleArray(n * 2)
+        val pulseDoubleBuffer = DoubleArray(n * 2)
         // Filling up the real values, leaving the imaginary values as 0's
-        recordedBuffer.forEachIndexed { i, sh -> recordedDoubleBuffer[i] = sh.toDouble() }
+        recordedBuffer.forEachIndexed { i, sh -> recordedDoubleBuffer[i * 2] = sh.toDouble() }
+        pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i * 2] = sh.toDouble() }
+        // TODO: maybe we should use Floats instead? Or normalize the amplitude data to be between -1 and 1?
+        //  we might get more precision out of Float if we are using big values
+        val fftCalculator = DoubleFFT_1D(n.toLong())
 
         // calculate the correlation according to: inverse_fft(fft(record).conjugate * fft(pulse))
         fftCalculator.complexForward(pulseDoubleBuffer)
         fftCalculator.complexForward(recordedDoubleBuffer)
-        // TODO: correct multiplication, currently this isn't a correct complex number multiplication
         val correlation = DoubleArray(n * 2)
         var pComplex: Complex
         var rComplex: Complex
@@ -85,12 +78,12 @@ class DistanceAnalyzer {
         for (i in 0 until n step 2) {
             pComplex = Complex(pulseDoubleBuffer[i], pulseDoubleBuffer[i + 1])
             rComplex = Complex(recordedDoubleBuffer[i], recordedDoubleBuffer[i + 1])
-            mulResult = pComplex.conjugate() * rComplex
+            mulResult = pComplex.conjugate().multiply(rComplex)
             correlation[i] = mulResult.real
             correlation[i + 1] = mulResult.imaginary
         }
 
-        // TODO: are you sure about the scaling? I still don't know what it does
+        // TODO: Check whether we need to scale or not
         fftCalculator.complexInverse(correlation, true)
         return correlation
     }
