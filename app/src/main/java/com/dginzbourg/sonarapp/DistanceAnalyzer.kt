@@ -72,7 +72,7 @@ class DistanceAnalyzer {
         pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i] = sh.toDouble() }
         val recordedDoubleBuffer = recordedBuffer.map { it.toDouble() }.toDoubleArray()
 
-        // calculate the correlation according to: inverse_fft(fft(record) * fft(pulse))
+        // calculate the correlation according to: inverse_fft(fft(record).conjugate * fft(pulse))
         pulse.complexForward(pulseDoubleBuffer)
         record.complexForward(recordedDoubleBuffer)
         val correlation = DoubleArray(16384)
