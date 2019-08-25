@@ -5,6 +5,8 @@ import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.media.AudioFormat
+import android.media.AudioRecord
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
@@ -157,7 +159,15 @@ class MainActivity : AppCompatActivity() {
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
-        const val RECORDING_SAMPLES = SAMPLE_RATE
+        val RECORDING_SAMPLES = max(
+            AudioRecord.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            ) / 2.0,
+            // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
+            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
+        ).roundToInt()
         const val WINDOW_SIZE = 1024
         val WINDOW_OVERLAP = floor(0.5 * WINDOW_SIZE)
         val WINDOW_OVERLAP_EXTERIOR = WINDOW_SIZE - WINDOW_OVERLAP
