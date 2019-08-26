@@ -16,15 +16,23 @@ class NoiseFilter {
         recordedBuffer: ShortArray,
         pulseBuffer: ShortArray
     ): DoubleArray {
+        val chirpMiddle = recordedBuffer.indexOfFirst { it == recordedBuffer.max() }
+        val chirpStart = chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5
         // find first index of recorded buffer where it starts recording the transmitting signal
-        val firstSampleIndex = recordedBuffer.indexOfFirst { it > RECORDING_NOISE_THRESHOLD }
+//        val firstSampleIndex = recordedBuffer.indexOfFirst { it > RECORDING_NOISE_THRESHOLD }
+//        if (firstSampleIndex == -1 || firstSampleIndex == recordedBuffer.lastIndex) {
+//             todo fail
+//        }
+        val firstSampleIndex = chirpStart.toInt()
 
-        if (firstSampleIndex == -1 || firstSampleIndex == recordedBuffer.lastIndex) {
-            // todo fail
+
+        val n = if (recordedBuffer.size - firstSampleIndex < pulseBuffer.size) {
+            // Tha maxima is way too close to the end of the recording, don't trim
+            recordedBuffer.size
+        } else {
+            // Trim the recorded buffer to not include the start noise and 0's
+            recordedBuffer.size - firstSampleIndex
         }
-
-        // Trim the recorded buffer to not include the start noise and 0's
-        val n = recordedBuffer.size - firstSampleIndex
         val recordedDoubleBuffer = DoubleArray(n * 2)
         val pulseDoubleBuffer = DoubleArray(n * 2)
         // Filling up the real values, leaving the imaginary values as 0's
@@ -37,12 +45,7 @@ class NoiseFilter {
         var correlation = crossCorrelation(fftCalculator, pulseDoubleBuffer, recordedDoubleBuffer, n)
         correlation = correlation.map { if (it > CROSS_CORRELATION_SOUND_THRESHOLD) it else 0.0 }.toDoubleArray()
 
-        // EXPERIMENTAL: Trim everything that came before the chirp (gives an insight to the data we're dealing with)
-        val chirpMiddle = correlation.indexOfFirst { it == correlation.max() }
-        val chirpStart = chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5
-        if (chirpStart < 0) return correlation
-
-        return correlation.sliceArray(chirpStart.roundToInt() until correlation.size)
+        return correlation
     }
 
     private fun crossCorrelation(
