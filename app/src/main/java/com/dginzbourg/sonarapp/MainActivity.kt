@@ -13,10 +13,13 @@ import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
+import com.android.volley.Response
+import com.android.volley.toolbox.JsonObjectRequest
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import org.json.JSONObject
 import java.util.concurrent.Executors
 import kotlin.collections.ArrayList
 import kotlin.math.*
@@ -30,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private val mTransmitter = Transmitter()
     private val mDistanceAnalyzer = DistanceAnalyzer()
     private val mNoiseFilter = NoiseFilter()
+    private val requestQueue = Volley.newRequestQueue(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,53 +86,39 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
     }
 
-//    private fun analyzeRecordings(recorderBuffer: ShortArray) {
-//        /* Currently this just gets the 20KHz amplitude over the transmission time.
-//        *
-//        * TODO: do the analysis in an orderly fashion. tryLock is not starvation free. This way we'll be able to give
-//        *  the user the relevant distances. This can be dealt with after finishing the FFT milestone.
-//        * */
-//        // Only one thread at a time is allowed to use the buffer. This also simplifies how we deliver the relevant
-//        // distance to the user (because there's only one analysis running at a time).
-//        mAnalyzingLock.lock()
-//        Log.d(LOG_TAG, "Analyzing data...")
-//        for (i in mSONARDataBuffer.indices) {
-//            val startPos = i * WINDOW_OVERLAP_EXTERIOR.toInt()
-//            val endPos = i * WINDOW_OVERLAP_EXTERIOR.toInt() + WINDOW_SIZE
-//            for (indexInWindow in startPos until endPos) {
-//                // Normalize data and copy to mAnalyzerBuffer
-//                mAnalyzerBuffer[indexInWindow - startPos] = recorderBuffer[indexInWindow] / Short.MAX_VALUE.toDouble()
-//            }
-//            mFFT.realForwardFull(mAnalyzerBuffer)
-//            /* There are 1024 frequency buckets, we need the one where the main frequency resides. Not sure about the
-//            * /2.0 but when we measure with a sample rate of X then the max frequency we can measure is 0.5X. I hope
-//            * this is the right calculation */
-//            mSONARDataBuffer[i] = mAnalyzerBuffer[(MAIN_FREQUENCY / (SAMPLE_RATE / 2.0 / WINDOW_SIZE)).toInt()]
-//        }
-//        postFilteredCrossCorrelation()
-//        mAnalyzingLock.unlock()
-//    }
-
-//    private fun saveToFile(recorderBuffer: ShortArray) = runOnUiThread {
-//        val file = File(filesDir, "SonarApp_" + Calendar.getInstance().time.time)
-//        file.createNewFile()
-//        val writer = FileWriter(file)
-//        writer.use { w ->
-//            recorderBuffer.forEach {
-//                w.write(it.toString() + '\n')
-//            }
-//        }
-//    }
-
-    private fun postFilteredCrossCorrelation(filteredRecording: DoubleArray) {
+    private fun postDataToGraph(data: DoubleArray) {
         val entries = ArrayList<Entry>()
-        filteredRecording.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
+        data.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
         val dataSet = LineDataSet(entries, "SONAR Amplitude")
         dataSet.color = Color.BLACK
         dataSet.lineWidth = 1f
         dataSet.valueTextSize = 0.5f
         dataSet.setDrawCircles(false)
         mSONARAmplitude.postValue(LineData(dataSet))
+    }
+
+    private fun postDataToServer(data: DoubleArray) {
+        val jsonRequestBody = HashMap<String, DoubleArray>(1)
+        jsonRequestBody["data"] = data
+        val request = object : JsonObjectRequest(
+            SERVER_URL,
+            JSONObject(jsonRequestBody),
+            Response.Listener<JSONObject> {},
+            Response.ErrorListener {}
+        ) {
+            override fun getHeaders(): MutableMap<String, String> {
+                return HashMap<String, String>(1).also {
+                    it[REQUESTS_CONTENT_TYPE_HEADER] = REQUESTS_CONTENT_TYPE_JSON
+                }
+            }
+        }
+
+        requestQueue.add(request)
+    }
+
+    private fun postData(data: DoubleArray) {
+        postDataToGraph(data)
+        postDataToServer(data)
     }
 
     private fun submitNextTransmissionCycle() {
@@ -143,7 +133,7 @@ class MainActivity : AppCompatActivity() {
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
             )
-            postFilteredCrossCorrelation(filteredRecording)
+            postData(filteredRecording)
             // TODO: move speed of sound calculation to distance analyzer to a companion object (make it static)
             //val soundSpeed = 331 + 0.6 * mTempCalculator.getTemp()
             val soundSpeed = 331 + 0.6 * 15
@@ -171,5 +161,9 @@ class MainActivity : AppCompatActivity() {
             // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
             SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
         ).roundToInt()
+        /* DEBUG URL CONSTANTS */
+        const val SERVER_URL = "http://YOUR_IP:5000/"
+        const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
+        const val REQUESTS_CONTENT_TYPE_JSON = "application/json"
     }
 }
