@@ -104,8 +104,12 @@ class MainActivity : AppCompatActivity() {
         val request = object : JsonObjectRequest(
             SERVER_URL,
             JSONObject(jsonRequestBody),
-            Response.Listener<JSONObject> {},
-            Response.ErrorListener {}
+            Response.Listener<JSONObject> {
+                Log.d(LOG_TAG, "Server replied with $it")
+            },
+            Response.ErrorListener {
+                Log.e(LOG_TAG, "Error sending data to server: $it")
+            }
         ) {
             override fun getHeaders(): MutableMap<String, String> {
                 return HashMap<String, String>(1).also {
