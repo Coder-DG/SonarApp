@@ -99,8 +99,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun postDataToServer(data: DoubleArray) {
-        val jsonRequestBody = HashMap<String, DoubleArray>(1)
-        jsonRequestBody["data"] = data
+        val jsonRequestBody = HashMap<String, String>(1)
+        jsonRequestBody["data"] = data.toString()
         val request = object : JsonObjectRequest(
             SERVER_URL,
             JSONObject(jsonRequestBody),
@@ -117,11 +117,6 @@ class MainActivity : AppCompatActivity() {
         requestQueue.add(request)
     }
 
-    private fun postData(data: DoubleArray) {
-        postDataToGraph(data)
-        postDataToServer(data)
-    }
-
     private fun submitNextTransmissionCycle() {
         val transmissionCycle = SonarThread(Runnable {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
@@ -134,7 +129,7 @@ class MainActivity : AppCompatActivity() {
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
             )
-            postData(filteredRecording)
+            postDataToServer(filteredRecording)
             // TODO: move speed of sound calculation to distance analyzer to a companion object (make it static)
             //val soundSpeed = 331 + 0.6 * mTempCalculator.getTemp()
             val soundSpeed = 331 + 0.6 * 15
