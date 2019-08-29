@@ -102,9 +102,10 @@ class MainActivity : AppCompatActivity() {
         mSONARAmplitude.postValue(LineData(dataSet))
     }
 
-    private fun postDataToServer(data: DoubleArray) {
-        val jsonRequestBody = HashMap<String, String>(1)
-        jsonRequestBody["data"] = data.toString()
+    private fun postDataToServer(data: DoubleArray, tag: String) {
+        val jsonRequestBody = HashMap<String, Any>(1)
+        jsonRequestBody["data"] = data
+        jsonRequestBody["tag"] = tag
         val request = object : JsonObjectRequest(
             SERVER_URL,
             JSONObject(jsonRequestBody),
@@ -133,16 +134,14 @@ class MainActivity : AppCompatActivity() {
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
-            postDataToServer(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
+            postDataToServer(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
+                "recording_of_${++transmissionCycle}")
             val filteredRecording = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
             )
-            postDataToServer(filteredRecording)
-            // TODO: move speed of sound calculation to distance analyzer to a companion object (make it static)
-            //val soundSpeed = 331 + 0.6 * mTempCalculator.getTemp()
-            val soundSpeed = 331 + 0.6 * 15
-            //mDistanceAnalyzer.analyze(soundSpeed)
+            postDataToServer(filteredRecording, "cross_correlation_of_$transmissionCycle")
+            //mDistanceAnalyzer.analyze()
             submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
@@ -170,5 +169,6 @@ class MainActivity : AppCompatActivity() {
         const val SERVER_URL = "http://YOUR_IP:5000/"
         const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
         const val REQUESTS_CONTENT_TYPE_JSON = "application/json"
+        var transmissionCycle = 0
     }
 }
