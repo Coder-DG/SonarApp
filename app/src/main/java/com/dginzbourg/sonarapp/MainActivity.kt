@@ -13,6 +13,7 @@ import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
+import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
@@ -34,7 +35,7 @@ class MainActivity : AppCompatActivity() {
     private val mTransmitter = Transmitter()
     private val mDistanceAnalyzer = DistanceAnalyzer()
     private val mNoiseFilter = NoiseFilter()
-    private val requestQueue = Volley.newRequestQueue(this)
+    private lateinit var requestQueue: RequestQueue
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +49,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_main)
+        requestQueue = Volley.newRequestQueue(this)
         //mTempCalculator = TemperatureCalculator(this)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
         setAmpChartGraphSettings(sonarAmplitudeChart)
@@ -74,6 +76,7 @@ class MainActivity : AppCompatActivity() {
 
 
     override fun onResume() {
+        requestQueue = Volley.newRequestQueue(this)
         mTransmitter.init()
         mListener.init()
         submitNextTransmissionCycle()
@@ -81,6 +84,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        requestQueue.cancelAll { true }
         executor.shutdownNow()
         mTransmitter.mAudioPlayer.release()
         mListener.mAudioRecorder.release()
@@ -129,6 +133,7 @@ class MainActivity : AppCompatActivity() {
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
+            postDataToServer(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
             val filteredRecording = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
