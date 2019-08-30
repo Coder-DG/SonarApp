@@ -2,6 +2,7 @@ package com.dginzbourg.sonarapp
 
 import org.apache.commons.math3.complex.Complex
 import org.jtransforms.fft.DoubleFFT_1D
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 class NoiseFilter {
@@ -17,7 +18,7 @@ class NoiseFilter {
         pulseBuffer: ShortArray
     ): DoubleArray {
         val chirpMiddle = recordedBuffer.indexOfFirst { it == recordedBuffer.max() }
-        val chirpStart = chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5
+        val chirpStart = max(chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5, 0.0)
         // find first index of recorded buffer where it starts recording the transmitting signal
 //        val firstSampleIndex = recordedBuffer.indexOfFirst { it > RECORDING_NOISE_THRESHOLD }
 //        if (firstSampleIndex == -1 || firstSampleIndex == recordedBuffer.lastIndex) {
