@@ -86,7 +86,9 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         requestQueue.cancelAll { true }
         executor.shutdownNow()
+        mTransmitter.mAudioPlayer.stop()
         mTransmitter.mAudioPlayer.release()
+        mListener.mAudioRecorder.stop()
         mListener.mAudioRecorder.release()
         super.onPause()
     }
