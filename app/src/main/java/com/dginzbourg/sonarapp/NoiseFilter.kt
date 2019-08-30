@@ -27,6 +27,9 @@ class NoiseFilter {
         val firstSampleIndex = chirpStart.toInt()
 
         val n = recordedBuffer.size - firstSampleIndex
+        if (n < pulseBuffer.size) {
+            return DoubleArray(1)
+        }
         // TODO: Check when is the tranmission too close to the end of the recording and invalidate this calculation.
         val recordedDoubleBuffer = DoubleArray(n * 2)
         val pulseDoubleBuffer = DoubleArray(n * 2)
@@ -59,14 +62,15 @@ class NoiseFilter {
         for (i in 0 until n step 2) {
             pComplex = Complex(pBuffer[i], pBuffer[i + 1])
             rComplex = Complex(rBuffer[i], rBuffer[i + 1])
-            mulResult = pComplex.conjugate().multiply(rComplex)
+            mulResult = pComplex.multiply(rComplex)
             correlation[i] = mulResult.real
             correlation[i + 1] = mulResult.imaginary
         }
 
         // TODO: Check whether we need to scale or not
         fft.complexInverse(correlation, true)
-        return correlation
+        val halfIndices = correlation.indices step 2
+        return halfIndices.map { i -> Complex(correlation[i], correlation[i + 1]).abs() }.toDoubleArray()
     }
 
 }
