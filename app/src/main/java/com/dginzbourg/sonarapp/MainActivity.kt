@@ -136,8 +136,10 @@ class MainActivity : AppCompatActivity() {
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
-            postDataToServer(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
-                "recording_of_${++transmissionCycle}")
+            postDataToServer(
+                mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
+                "recording_of_${++transmissionCycle}"
+            )
             val filteredRecording = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
