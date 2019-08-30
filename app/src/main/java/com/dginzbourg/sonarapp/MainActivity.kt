@@ -161,13 +161,13 @@ class MainActivity : AppCompatActivity() {
         const val LOG_TAG = "sonar_app"
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         val RECORDING_SAMPLES = max(
-            AudioRecord.getMinBufferSize(
+            2 * AudioRecord.getMinBufferSize(
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
             ) / 2.0,
             // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
-            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
+            2 * SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
         ).roundToInt()
         /* DEBUG URL CONSTANTS */
         const val SERVER_URL = "http://YOUR_IP:5000/"
