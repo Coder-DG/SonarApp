@@ -156,7 +156,7 @@ class MainActivity : AppCompatActivity() {
         const val MIN_CHIRP_FREQ = 4000.0
         const val MAX_CHIRP_FREQ = 8000.0
         // TODO: try shorten the chirp to try cover only 1m
-        const val CHIRP_DURATION = 0.005
+        const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
