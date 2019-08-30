@@ -26,14 +26,8 @@ class NoiseFilter {
 //        }
         val firstSampleIndex = chirpStart.toInt()
 
-
-        val n = if (recordedBuffer.size - firstSampleIndex < pulseBuffer.size) {
-            // Tha maxima is way too close to the end of the recording, don't trim
-            recordedBuffer.size
-        } else {
-            // Trim the recorded buffer to not include the start noise and 0's
-            recordedBuffer.size - firstSampleIndex
-        }
+        val n = recordedBuffer.size - firstSampleIndex
+        // TODO: Check when is the tranmission too close to the end of the recording and invalidate this calculation.
         val recordedDoubleBuffer = DoubleArray(n * 2)
         val pulseDoubleBuffer = DoubleArray(n * 2)
         // Filling up the real values, leaving the imaginary values as 0's
