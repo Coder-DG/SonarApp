@@ -153,7 +153,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         // TODO: go ultrasonic when this works (min: 20, max: 22)
-        const val MIN_CHIRP_FREQ = 4000.0
+        const val MIN_CHIRP_FREQ = 8000.0
         const val MAX_CHIRP_FREQ = 8000.0
         // TODO: try shorten the chirp to try cover only 1m
         const val CHIRP_DURATION = 0.01
