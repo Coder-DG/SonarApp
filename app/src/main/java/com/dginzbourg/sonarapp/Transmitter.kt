@@ -61,6 +61,7 @@ class Transmitter {
 
     private fun chirp(f0: Double, f1: Double, t1: Double, samplingFreq: Double): DoubleArray {
         val k = (f1 - f0) / t1
+        // TODO: David: why the +1?
         val samples = ceil(t1 * samplingFreq).toInt() + 1
         val chirp = DoubleArray(samples)
         val inc = 1 / samplingFreq
