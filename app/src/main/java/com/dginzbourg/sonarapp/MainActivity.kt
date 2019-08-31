@@ -5,41 +5,38 @@ import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.AudioTrack
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.media.AudioTrack
-import android.media.AudioFormat
-import android.os.Handler
 import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
+import com.android.volley.RequestQueue
+import com.android.volley.Response
+import com.android.volley.toolbox.JsonObjectRequest
+import com.android.volley.toolbox.Volley
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import org.jtransforms.fft.DoubleFFT_1D
-import java.lang.Thread.sleep
-import java.util.concurrent.CyclicBarrier
-import java.util.concurrent.ExecutorService
+import org.json.JSONObject
 import java.util.concurrent.Executors
-import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
 import kotlin.math.*
 
-
+// TODO: Performance enhancements
 class MainActivity : AppCompatActivity() {
     private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
-    private var executor: ExecutorService = Executors.newCachedThreadPool()
-    private var mSONARDataBuffer = DoubleArray(SONAR_DATA_BUFFER_SIZE)
+    private var executor = Executors.newCachedThreadPool()
     //private lateinit var mTempCalculator : TemperatureCalculator
-//    private var mFFT = DoubleFFT_1D(WINDOW_SIZE.toLong())
-    private val mCyclicBarrier = CyclicBarrier(2) // 2 = transmitter and listener
-    private val mAnalysisLock = ReentrantLock()
     private val mListener = Listener()
     private val mTransmitter = Transmitter()
     private val mDistanceAnalyzer = DistanceAnalyzer()
     private val mNoiseFilter = NoiseFilter()
+    private lateinit var requestQueue: RequestQueue
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,9 +50,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_main)
+        requestQueue = Volley.newRequestQueue(this)
         //mTempCalculator = TemperatureCalculator(this)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
-        setAmpChartGraphSettings(sonarAmplitudeChart)
+        //setAmpChartGraphSettings(sonarAmplitudeChart)
         mSONARAmplitude.observe(this, Observer<LineData> {
             if (it == null)
                 return@Observer
@@ -66,139 +64,153 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setAmpChartGraphSettings(sonarAmplitudeChart: LineChart) {
-        sonarAmplitudeChart.axisLeft.axisMaximum = 1f
-        sonarAmplitudeChart.axisLeft.axisMinimum = -1f
-        sonarAmplitudeChart.axisRight.axisMaximum = 1f
-        sonarAmplitudeChart.axisRight.axisMinimum = -1f
+        // This sets the zoom levels so we won't have to zoom in or out
+        val maxValue = 4e10f
+        val minValue = 0f
+        sonarAmplitudeChart.axisLeft.axisMaximum = maxValue
+        sonarAmplitudeChart.axisLeft.axisMinimum = minValue
+        sonarAmplitudeChart.axisRight.axisMaximum = maxValue
+        sonarAmplitudeChart.axisRight.axisMinimum = minValue
+        sonarAmplitudeChart.xAxis.axisMinimum = 0f
+        sonarAmplitudeChart.xAxis.axisMaximum = RECORDING_SAMPLES.toFloat()
     }
 
 
     override fun onResume() {
+        requestQueue = Volley.newRequestQueue(this)
         mTransmitter.init()
         mListener.init()
-        // TODO: Add a check to see if any errors are thrown within the thread execution. Currently there's an
-        //  IllegalState error when trying to invoke mTransmitter.mAudioPlayer.stop() in the listener thread.
+        var g = DoubleArray(Transmitter.PLAYER_BUFFER_SIZE)
+//        for (sampleIndex in g.indices) {
+//            if (sampleIndex < 300 || sampleIndex > 399) {
+//                g[sampleIndex] = 0.0
+//                continue
+//            }
+//            g[sampleIndex] =
+//                sin(30 * 2 * PI * sampleIndex * 0.5 / 1000)
+//        }
+
+//        mListener.mRecorderBuffer = g.map { (it * Short.MAX_VALUE).toShort() }.toShortArray()
+
+//        val gg = DoubleArray(RECORDING_SAMPLES)
+//        for (i in 0 until RECORDING_SAMPLES) {
+//            if (i < CHIRP_DURATION * SAMPLE_RATE) {
+//                gg[i] = mTransmitter.mPlayerBuffer[i].toDouble()
+//            } else if (i < 660){
+//                gg[i] = 0.0
+//            } else if (i < 660 + CHIRP_DURATION * SAMPLE_RATE) {
+//                gg[i] = 0.3 * mTransmitter.mPlayerBuffer[i - 660].toDouble()
+//            } else {
+//                gg[i] = 0.0
+//            }
+//        }
+//        mListener.mRecorderBuffer = gg.map { (it * Short.MAX_VALUE).toShort() }.toShortArray()
+
+//        val b = mNoiseFilter.filterNoise(mListener.mRecorderBuffer, mTransmitter.mPlayerBuffer)
+//        postDataToGraph(b)
+//        mDistanceAnalyzer.analyze(1200, 450, 2.0, 300.0, b.sliceArray(0..b.size / 2))
         submitNextTransmissionCycle()
         super.onResume()
     }
 
     override fun onPause() {
+        requestQueue.cancelAll { true }
         executor.shutdownNow()
+        mTransmitter.mAudioPlayer.stop()
         mTransmitter.mAudioPlayer.release()
+        mListener.mAudioRecorder.stop()
         mListener.mAudioRecorder.release()
         super.onPause()
     }
 
-//    private fun analyzeRecordings(recorderBuffer: ShortArray) {
-//        /* Currently this just gets the 20KHz amplitude over the transmission time.
-//        *
-//        * TODO: do the analysis in an orderly fashion. tryLock is not starvation free. This way we'll be able to give
-//        *  the user the relevant distances. This can be dealt with after finishing the FFT milestone.
-//        * */
-//        // Only one thread at a time is allowed to use the buffer. This also simplifies how we deliver the relevant
-//        // distance to the user (because there's only one analysis running at a time).
-//        mAnalyzingLock.lock()
-//        Log.d(LOG_TAG, "Analyzing data...")
-//        for (i in mSONARDataBuffer.indices) {
-//            val startPos = i * WINDOW_OVERLAP_EXTERIOR.toInt()
-//            val endPos = i * WINDOW_OVERLAP_EXTERIOR.toInt() + WINDOW_SIZE
-//            for (indexInWindow in startPos..endPos) {
-//                // Normalize data and copy to mAnalyzerBuffer
-//                mAnalyzerBuffer[indexInWindow - startPos] = recorderBuffer[indexInWindow] / Short.MAX_VALUE.toDouble()
-//            }
-//            mFFT.realForwardFull(mAnalyzerBuffer)
-//            /* There are 1024 frequency buckets, we need the one where the main frequency resides. Not sure about the
-//            * /2.0 but when we measure with a sample rate of X then the max frequency we can measure is 0.5X. I hope
-//            * this is the right calculation */
-//            mSONARDataBuffer[i] = mAnalyzerBuffer[(MAIN_FREQUENCY / (SAMPLE_RATE / 2.0 / WINDOW_SIZE)).toInt()]
-//        }
-//        postLineData()
-//        mAnalyzingLock.unlock()
-//    }
+    private fun postDataToGraph(data: DoubleArray) {
+        val entries = ArrayList<Entry>()
+        data.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
+        val dataSet = LineDataSet(entries, "SONAR Amplitude")
+        dataSet.color = Color.BLACK
+        dataSet.lineWidth = 1f
+        dataSet.valueTextSize = 0.5f
+        dataSet.setDrawCircles(false)
+        mSONARAmplitude.postValue(LineData(dataSet))
+    }
 
-//    private fun saveToFile(recorderBuffer: ShortArray) = runOnUiThread {
-//        val file = File(filesDir, "SonarApp_" + Calendar.getInstance().time.time)
-//        file.createNewFile()
-//        val writer = FileWriter(file)
-//        writer.use { w ->
-//            recorderBuffer.forEach {
-//                w.write(it.toString() + '\n')
-//            }
-//        }
-//    }
-
-//    private fun postLineData() {
-//        val entries = ArrayList<Entry>()
-//        mSONARDataBuffer.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
-//        val dataSet = LineDataSet(entries, "SONAR Amplitude")
-//        dataSet.color = Color.BLACK
-//        dataSet.lineWidth = 1f
-//        dataSet.valueTextSize = 0.5f
-//        dataSet.setDrawCircles(false)
-//        mSONARAmplitude.postValue(LineData(dataSet))
-//    }
-
-    private fun await(entity: String): Boolean {
-        try {
-            Log.d(LOG_TAG, "Waiting inside the $entity")
-            mCyclicBarrier.await()
-        } catch (ex: InterruptedException) {
-            Log.d(LOG_TAG, "Barrier interrupted inside the $entity")
-            return false
+    private fun postDataToServer(data: DoubleArray, tag: String) {
+        val jsonRequestBody = HashMap<String, Any>(1)
+        jsonRequestBody["data"] = data
+        jsonRequestBody["tag"] = tag
+        val request = object : JsonObjectRequest(
+            SERVER_URL,
+            JSONObject(jsonRequestBody),
+            Response.Listener<JSONObject> {
+                Log.d(LOG_TAG, "Server replied with $it")
+            },
+            Response.ErrorListener {
+                Log.e(LOG_TAG, "Error sending data to server: $it")
+            }
+        ) {
+            override fun getHeaders(): MutableMap<String, String> {
+                return HashMap<String, String>(1).also {
+                    it[REQUESTS_CONTENT_TYPE_HEADER] = REQUESTS_CONTENT_TYPE_JSON
+                }
+            }
         }
-        return true
+
+        requestQueue.add(request)
     }
 
     private fun submitNextTransmissionCycle() {
-        mCyclicBarrier.reset()
-        val transmissionThread = Thread {
+        val transmissionCycle = SonarThread(Runnable {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-            if (!await("Transmitter")) return@Thread
-
             mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
-        }
-        executor.submit(transmissionThread)
-
-        executor.submit(Thread {
-            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-            if (!await("Listener")) return@Thread
-
             mListener.listen()
-            Log.d(MainActivity.LOG_TAG, "Stopping transmission...")
-            transmissionThread.join()
+            Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
-            submitNextTransmissionCycle()
-            mAnalysisLock.lock()
-            mNoiseFilter.filterNoise()
-            // TODO: move speed of sound calculation to distance analyzer to a companion object (make it static)
-            //val soundSpeed = 331 + 0.6 * mTempCalculator.getTemp()
-            val soundSpeed = 331 + 0.6 * 15
-            //mDistanceAnalyzer.analyze(soundSpeed)
-            mAnalysisLock.unlock()
-        })
-    }
+            //postDataToServer(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
+            //    "recording_of_${++transmissionCycle}")
+            val filteredRecording = mNoiseFilter.filterNoise(
+                recordedBuffer = mListener.mRecorderBuffer,
+                pulseBuffer = mTransmitter.mPlayerBuffer
+            )
 
+            val gg = DoubleArray(RECORDING_SAMPLES * 10)
+            val g = DoubleArray(Transmitter.PLAYER_BUFFER_SIZE)
+            for (i in 0 until mListener.mRecorderBuffer.size) {
+                gg[i] = mListener.mRecorderBuffer[i].toDouble()
+            }
+
+            for (i in 0 until mTransmitter.mPlayerBuffer.size) {
+                g[i] = mTransmitter.mPlayerBuffer[i].toDouble()
+            }
+            postDataToGraph(filteredRecording)
+            mDistanceAnalyzer.analyze(1200, 450, 2.0, 300.0, filteredRecording.sliceArray(0..filteredRecording.size / 2))
+            //submitNextTransmissionCycle()
+        })
+        executor.submit(transmissionCycle)
+    }
 
     companion object {
         // TODO: go ultrasonic when this works (min: 20, max: 22)
-        const val MIN_CHIRP_FREQ = 4000.0
-        const val MAX_CHIRP_FREQ = 8000.0
+        const val MIN_CHIRP_FREQ = 2000.0
+        const val MAX_CHIRP_FREQ = 4000.0
         // TODO: try shorten the chirp to try cover only 1m
-        const val CHIRP_DURATION = 0.01
+        const val CHIRP_DURATION = 0.02
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
-        const val RECORDING_SAMPLES = SAMPLE_RATE
-        const val WINDOW_SIZE = 1024
-        val WINDOW_OVERLAP = floor(0.5 * WINDOW_SIZE)
-        val WINDOW_OVERLAP_EXTERIOR = WINDOW_SIZE - WINDOW_OVERLAP
-        const val FFT_BUFFER_SIZE = 2 * WINDOW_SIZE
-        /* This amount represents the maximum amount of samples we'd analyse.
-        * 0.03 = time it takes for sound to travel 10.29m in air that is 20c degrees hot. That's our threshold. */
-        val LISTENING_SAMPLES_THRESHOLD = min(ceil(SAMPLE_RATE * 0.03).toInt(), RECORDING_SAMPLES)
-        val SONAR_DATA_BUFFER_SIZE = floor(
-            (LISTENING_SAMPLES_THRESHOLD - 1) / WINDOW_OVERLAP_EXTERIOR
-        ).toInt()
+        val RECORDING_SAMPLES = max(
+            AudioRecord.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            ) / 2.0,
+            // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
+            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
+        ).roundToInt()
+        /* DEBUG URL CONSTANTS */
+        const val SERVER_URL = "http://YOUR_IP:5000/"
+        const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
+        const val REQUESTS_CONTENT_TYPE_JSON = "application/json"
+        var transmissionCycle = 0
     }
 }

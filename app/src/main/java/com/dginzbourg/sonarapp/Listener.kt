@@ -7,11 +7,10 @@ import android.util.Log
 
 class Listener {
     lateinit var mAudioRecorder: AudioRecord
-    var mRecorderBuffer = ShortArray(MainActivity.SAMPLE_RATE)
-
+    var mRecorderBuffer = ShortArray(MainActivity.RECORDING_SAMPLES * 10)
 
     fun listen() {
-        Log.d(MainActivity.LOG_TAG, "Listening (${mRecorderBuffer.size} samples)...")
+        Log.d(MainActivity.LOG_TAG, "Listening for (${mRecorderBuffer.size} samples)...")
         mAudioRecorder.read(mRecorderBuffer, 0, mRecorderBuffer.size)
         Log.d(MainActivity.LOG_TAG, "Done listening")
         mAudioRecorder.stop()
@@ -30,6 +29,7 @@ class Listener {
             )
             .setBufferSizeInBytes(MainActivity.RECORDING_SAMPLES * 2)
             .build()
+        Log.d(MainActivity.LOG_TAG, "Record buffer size is ${MainActivity.RECORDING_SAMPLES}")
         if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
             Log.e(MainActivity.LOG_TAG, "Unable to init recorder")
             // TODO: let the user know
