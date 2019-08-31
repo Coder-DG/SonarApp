@@ -18,14 +18,14 @@ class DistanceAnalyzer {
         val transmittedPeakIndex = correlation.indexOf(correlation.max()!!)
         var returnPeakIndex = transmittedPeakIndex
         do {
-            if (returnPeakIndex > transmittedPeakIndex + maxPeakDist || correlation[returnPeakIndex] == 0.0
-                || returnPeakIndex >= correlation.size - 1) {
+            if (returnPeakIndex > transmittedPeakIndex + maxPeakDist || correlation[returnPeakIndex] == 0.0) {
                 return -1.0 // failure
             }
             // find next maximum up to a distance of maxPeakDist from the first peak
-            val slicedList = correlation.sliceArray(
+            val slicedList = correlation.slice(
                 returnPeakIndex + 1 until
-                        min(transmittedPeakIndex + maxPeakDist, correlation.size))
+                        min(transmittedPeakIndex + maxPeakDist, correlation.size)
+            ).toDoubleArray()
             returnPeakIndex += slicedList.indexOf(slicedList.max()!!) + 1
             // check distance between second peak and first peak is greater than minPeakDist and check that first peak
             // is larger than second peak

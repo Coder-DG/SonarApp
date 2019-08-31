@@ -2,7 +2,6 @@ package com.dginzbourg.sonarapp
 
 import org.apache.commons.math3.complex.Complex
 import org.jtransforms.fft.DoubleFFT_1D
-import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -11,7 +10,7 @@ class NoiseFilter {
         // TODO: change that to the correct value (or find a value)
         const val RECORDING_NOISE_THRESHOLD = 10
         // TODO: use the value from the article
-        const val CROSS_CORRELATION_SOUND_THRESHOLD = Transmitter.AMPLITUDE * Transmitter.AMPLITUDE * 0.1
+        const val CROSS_CORRELATION_SOUND_THRESHOLD = 10
     }
 
     fun filterNoise(
@@ -27,14 +26,11 @@ class NoiseFilter {
 //        }
         val firstSampleIndex = chirpStart.toInt()
 
-
-        val n = if (recordedBuffer.size - firstSampleIndex < pulseBuffer.size) {
-            // Tha maxima is way too close to the end of the recording, don't trim
-            recordedBuffer.size
-        } else {
-            // Trim the recorded buffer to not include the start noise and 0's
-            recordedBuffer.size - firstSampleIndex
+        val n = recordedBuffer.size - firstSampleIndex
+        if (n < pulseBuffer.size) {
+            return DoubleArray(1)
         }
+        // TODO: Check when is the tranmission too close to the end of the recording and invalidate this calculation.
         val recordedDoubleBuffer = DoubleArray(n * 2)
         val pulseDoubleBuffer = DoubleArray(n * 2)
         // Filling up the real values, leaving the imaginary values as 0's
@@ -45,7 +41,7 @@ class NoiseFilter {
 
         val fftCalculator = DoubleFFT_1D(n.toLong())
         var correlation = crossCorrelation(fftCalculator, pulseDoubleBuffer, recordedDoubleBuffer, n)
-        correlation = correlation.map { if (it.absoluteValue > CROSS_CORRELATION_SOUND_THRESHOLD) it else 0.0 }.toDoubleArray()
+        correlation = correlation.map { if (it > CROSS_CORRELATION_SOUND_THRESHOLD) it else 0.0 }.toDoubleArray()
 
         return correlation
     }
@@ -66,7 +62,7 @@ class NoiseFilter {
         for (i in 0 until n step 2) {
             pComplex = Complex(pBuffer[i], pBuffer[i + 1])
             rComplex = Complex(rBuffer[i], rBuffer[i + 1])
-            mulResult = pComplex.conjugate().multiply(rComplex)
+            mulResult = pComplex.multiply(rComplex)
             correlation[i] = mulResult.real
             correlation[i + 1] = mulResult.imaginary
         }

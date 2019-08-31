@@ -10,7 +10,6 @@ class Transmitter {
 
     companion object {
         val PLAYER_BUFFER_SIZE = ceil(MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).toInt()
-        const val AMPLITUDE = Short.MAX_VALUE
     }
 
     lateinit var mAudioPlayer: AudioTrack
@@ -48,33 +47,21 @@ class Transmitter {
 
         // TODO: check that the audio player has been initialized properly, else notify the user
 
-        mPlayerBuffer = ShortArray(PLAYER_BUFFER_SIZE)
-        val g = DoubleArray(PLAYER_BUFFER_SIZE)
-        for (sampleIndex in g.indices) {
-            if (sampleIndex > 500) {
-                g[sampleIndex] = 0.0
-                continue
-            }
-            g[sampleIndex] =
-                sin(1000 * 2 * PI * sampleIndex / MainActivity.SAMPLE_RATE)
-        }
-
-        mPlayerBuffer = g.map { (it * Short.MAX_VALUE).toShort() }.toShortArray()
-
-//        mPlayerBuffer =
-//            chirp(
-//                MainActivity.MIN_CHIRP_FREQ,
-//                MainActivity.MAX_CHIRP_FREQ,
-//                MainActivity.CHIRP_DURATION,
-//                MainActivity.SAMPLE_RATE.toDouble()
-//            )
-//                .mapIndexed { i, d -> hanningWindow(i, d) }
-//                .map { (it * AMPLITUDE).toShort() }.toShortArray()
-//        mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
+        mPlayerBuffer =
+            chirp(
+                MainActivity.MIN_CHIRP_FREQ,
+                MainActivity.MAX_CHIRP_FREQ,
+                MainActivity.CHIRP_DURATION,
+                MainActivity.SAMPLE_RATE.toDouble()
+            )
+                .mapIndexed { i, d -> hanningWindow(i, d) }
+                .map { (it * Short.MAX_VALUE).toShort() }.toShortArray()
+        mAudioPlayer.setVolume(AudioTrack.getMaxVolume())
     }
 
-    public fun chirp(f0: Double, f1: Double, t1: Double, samplingFreq: Double): DoubleArray {
+    private fun chirp(f0: Double, f1: Double, t1: Double, samplingFreq: Double): DoubleArray {
         val k = (f1 - f0) / t1
+        // TODO: David: why the +1?
         val samples = ceil(t1 * samplingFreq).toInt() + 1
         val chirp = DoubleArray(samples)
         val inc = 1 / samplingFreq
@@ -89,7 +76,7 @@ class Transmitter {
         return chirp
     }
 
-    public fun hanningWindow(index: Int, double: Double) = double * 0.5 *
+    private fun hanningWindow(index: Int, double: Double) = double * 0.5 *
             (1.0 - cos(2.0 * PI * index.toDouble() / PLAYER_BUFFER_SIZE))
 
 }

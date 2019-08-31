@@ -7,7 +7,8 @@ import android.util.Log
 
 class Listener {
     lateinit var mAudioRecorder: AudioRecord
-    var mRecorderBuffer = ShortArray(MainActivity.RECORDING_SAMPLES * 10)
+    var mRecorderBuffer = ShortArray(MainActivity.RECORDING_SAMPLES)
+
 
     fun listen() {
         Log.d(MainActivity.LOG_TAG, "Listening for (${mRecorderBuffer.size} samples)...")

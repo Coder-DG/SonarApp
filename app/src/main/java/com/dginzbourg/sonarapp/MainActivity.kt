@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.media.AudioFormat
 import android.media.AudioRecord
-import android.media.AudioTrack
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
@@ -53,7 +52,7 @@ class MainActivity : AppCompatActivity() {
         requestQueue = Volley.newRequestQueue(this)
         //mTempCalculator = TemperatureCalculator(this)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
-        //setAmpChartGraphSettings(sonarAmplitudeChart)
+        setAmpChartGraphSettings(sonarAmplitudeChart)
         mSONARAmplitude.observe(this, Observer<LineData> {
             if (it == null)
                 return@Observer
@@ -80,35 +79,6 @@ class MainActivity : AppCompatActivity() {
         requestQueue = Volley.newRequestQueue(this)
         mTransmitter.init()
         mListener.init()
-        var g = DoubleArray(Transmitter.PLAYER_BUFFER_SIZE)
-//        for (sampleIndex in g.indices) {
-//            if (sampleIndex < 300 || sampleIndex > 399) {
-//                g[sampleIndex] = 0.0
-//                continue
-//            }
-//            g[sampleIndex] =
-//                sin(30 * 2 * PI * sampleIndex * 0.5 / 1000)
-//        }
-
-//        mListener.mRecorderBuffer = g.map { (it * Short.MAX_VALUE).toShort() }.toShortArray()
-
-//        val gg = DoubleArray(RECORDING_SAMPLES)
-//        for (i in 0 until RECORDING_SAMPLES) {
-//            if (i < CHIRP_DURATION * SAMPLE_RATE) {
-//                gg[i] = mTransmitter.mPlayerBuffer[i].toDouble()
-//            } else if (i < 660){
-//                gg[i] = 0.0
-//            } else if (i < 660 + CHIRP_DURATION * SAMPLE_RATE) {
-//                gg[i] = 0.3 * mTransmitter.mPlayerBuffer[i - 660].toDouble()
-//            } else {
-//                gg[i] = 0.0
-//            }
-//        }
-//        mListener.mRecorderBuffer = gg.map { (it * Short.MAX_VALUE).toShort() }.toShortArray()
-
-//        val b = mNoiseFilter.filterNoise(mListener.mRecorderBuffer, mTransmitter.mPlayerBuffer)
-//        postDataToGraph(b)
-//        mDistanceAnalyzer.analyze(1200, 450, 2.0, 300.0, b.sliceArray(0..b.size / 2))
         submitNextTransmissionCycle()
         super.onResume()
     }
@@ -166,46 +136,38 @@ class MainActivity : AppCompatActivity() {
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
-            //postDataToServer(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
-            //    "recording_of_${++transmissionCycle}")
+            postDataToServer(
+                mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
+                "recording_of_${++transmissionCycle}"
+            )
             val filteredRecording = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
             )
-
-            val gg = DoubleArray(RECORDING_SAMPLES * 10)
-            val g = DoubleArray(Transmitter.PLAYER_BUFFER_SIZE)
-            for (i in 0 until mListener.mRecorderBuffer.size) {
-                gg[i] = mListener.mRecorderBuffer[i].toDouble()
-            }
-
-            for (i in 0 until mTransmitter.mPlayerBuffer.size) {
-                g[i] = mTransmitter.mPlayerBuffer[i].toDouble()
-            }
-            postDataToGraph(filteredRecording)
-            mDistanceAnalyzer.analyze(1200, 450, 2.0, 300.0, filteredRecording.sliceArray(0..filteredRecording.size / 2))
-            //submitNextTransmissionCycle()
+            postDataToServer(filteredRecording, "cross_correlation_of_$transmissionCycle")
+            //mDistanceAnalyzer.analyze()
+            submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
     }
 
     companion object {
         // TODO: go ultrasonic when this works (min: 20, max: 22)
-        const val MIN_CHIRP_FREQ = 2000.0
-        const val MAX_CHIRP_FREQ = 4000.0
+        const val MIN_CHIRP_FREQ = 8000.0
+        const val MAX_CHIRP_FREQ = 8000.0
         // TODO: try shorten the chirp to try cover only 1m
-        const val CHIRP_DURATION = 0.02
+        const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         val RECORDING_SAMPLES = max(
-            AudioRecord.getMinBufferSize(
+            2 * AudioRecord.getMinBufferSize(
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
             ) / 2.0,
             // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
-            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
+            2 * SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
         ).roundToInt()
         /* DEBUG URL CONSTANTS */
         const val SERVER_URL = "http://YOUR_IP:5000/"
