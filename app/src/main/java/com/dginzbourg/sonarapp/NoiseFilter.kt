@@ -16,27 +16,25 @@ class NoiseFilter {
     fun filterNoise(
         recordedBuffer: ShortArray,
         pulseBuffer: ShortArray
-    ): DoubleArray {
-        val chirpMiddle = recordedBuffer.indexOfFirst { it == recordedBuffer.max() }
-        val chirpStart = max(chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5, 0.0)
-        // find first index of recorded buffer where it starts recording the transmitting signal
-//        val firstSampleIndex = recordedBuffer.indexOfFirst { it > RECORDING_NOISE_THRESHOLD }
-//        if (firstSampleIndex == -1 || firstSampleIndex == recordedBuffer.lastIndex) {
-//             todo fail
-//        }
-        val firstSampleIndex = chirpStart.toInt()
+    ): DoubleArray? {
+        val chirpMiddle = recordedBuffer.indexOfFirst { it == recordedBuffer.max() && it > RECORDING_NOISE_THRESHOLD }
+        if (chirpMiddle == -1) return null
 
-        val n = recordedBuffer.size - firstSampleIndex
-        if (n < pulseBuffer.size) {
-            return DoubleArray(1)
-        }
+        val chirpStart = max(chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5, 0.0)
+        val firstSampleIndex = chirpStart.toInt()
+        val lastSampleIndex = recordedBuffer.reversed().indexOfFirst { it > RECORDING_NOISE_THRESHOLD }
+        if (lastSampleIndex == -1) return null
+
+        val n = lastSampleIndex - firstSampleIndex
+        if (n < pulseBuffer.size) return null
+
         // TODO: Check when is the tranmission too close to the end of the recording and invalidate this calculation.
         val recordedDoubleBuffer = DoubleArray(n * 2)
         val pulseDoubleBuffer = DoubleArray(n * 2)
         // Filling up the real values, leaving the imaginary values as 0's
         pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i * 2] = sh.toDouble() }
-        for (i in firstSampleIndex until recordedBuffer.size) {
-            recordedDoubleBuffer[(i - firstSampleIndex) * 2] = recordedBuffer[i].toDouble()
+        for (i in 0 until n) {
+            recordedDoubleBuffer[i * 2] = recordedBuffer[firstSampleIndex + i].toDouble()
         }
 
         val fftCalculator = DoubleFFT_1D(n.toLong())
