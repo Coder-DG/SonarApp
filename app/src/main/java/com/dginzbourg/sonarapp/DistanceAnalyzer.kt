@@ -3,6 +3,7 @@ package com.dginzbourg.sonarapp
 import java.lang.Math.min
 
 class DistanceAnalyzer {
+
     companion object {
         const val BASE_SOUND_SPEED = 331
     }
@@ -11,14 +12,15 @@ class DistanceAnalyzer {
         maxPeakDist: Int,
         minPeakDist: Int,
         peakRatio: Double,
-        soundSpeed: Double,
-        correlation: DoubleArray
+        correlation: DoubleArray,
+        soundSpeed: Double
     ): Double {
         // find maximum peak and assume it is the transmitted peak
         val transmittedPeakIndex = correlation.indexOf(correlation.max()!!)
         var returnPeakIndex = transmittedPeakIndex
         do {
-            if (returnPeakIndex > transmittedPeakIndex + maxPeakDist || correlation[returnPeakIndex] == 0.0) {
+            if (returnPeakIndex > transmittedPeakIndex + maxPeakDist || correlation[returnPeakIndex] == 0.0
+                || returnPeakIndex >= correlation.size - 1) {
                 return -1.0 // failure
             }
             // find next maximum up to a distance of maxPeakDist from the first peak

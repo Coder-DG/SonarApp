@@ -3,6 +3,7 @@ package com.dginzbourg.sonarapp
 import org.apache.commons.math3.complex.Complex
 import org.jtransforms.fft.DoubleFFT_1D
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 class NoiseFilter {
@@ -16,27 +17,23 @@ class NoiseFilter {
     fun filterNoise(
         recordedBuffer: ShortArray,
         pulseBuffer: ShortArray
-    ): DoubleArray {
-        val chirpMiddle = recordedBuffer.indexOfFirst { it == recordedBuffer.max() }
+    ): DoubleArray? {
+        val chirpMiddle = recordedBuffer.indexOfFirst { it == recordedBuffer.max() && it > RECORDING_NOISE_THRESHOLD }
+        if (chirpMiddle == -1) return null
+
         val chirpStart = max(chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5, 0.0)
-        // find first index of recorded buffer where it starts recording the transmitting signal
-//        val firstSampleIndex = recordedBuffer.indexOfFirst { it > RECORDING_NOISE_THRESHOLD }
-//        if (firstSampleIndex == -1 || firstSampleIndex == recordedBuffer.lastIndex) {
-//             todo fail
-//        }
         val firstSampleIndex = chirpStart.toInt()
 
-        val n = recordedBuffer.size - firstSampleIndex
-        if (n < pulseBuffer.size) {
-            return DoubleArray(1)
-        }
+        val n = min(recordedBuffer.size - firstSampleIndex, MainActivity.RECORDING_CUT_OFF)
+        if (n < pulseBuffer.size) return null
+
         // TODO: Check when is the tranmission too close to the end of the recording and invalidate this calculation.
         val recordedDoubleBuffer = DoubleArray(n * 2)
         val pulseDoubleBuffer = DoubleArray(n * 2)
         // Filling up the real values, leaving the imaginary values as 0's
         pulseBuffer.forEachIndexed { i, sh -> pulseDoubleBuffer[i * 2] = sh.toDouble() }
-        for (i in firstSampleIndex until recordedBuffer.size) {
-            recordedDoubleBuffer[(i - firstSampleIndex) * 2] = recordedBuffer[i].toDouble()
+        for (i in 0 until n) {
+            recordedDoubleBuffer[i * 2] = recordedBuffer[firstSampleIndex + i].toDouble()
         }
 
         val fftCalculator = DoubleFFT_1D(n.toLong())

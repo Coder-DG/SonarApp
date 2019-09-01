@@ -104,10 +104,11 @@ class MainActivity : AppCompatActivity() {
         mSONARAmplitude.postValue(LineData(dataSet))
     }
 
-    private fun postDataToServer(data: DoubleArray, tag: String) {
+    private fun postDataToServer(recording: DoubleArray, cc: DoubleArray, cycle: Int) {
         val jsonRequestBody = HashMap<String, Any>(1)
-        jsonRequestBody["data"] = data
-        jsonRequestBody["tag"] = tag
+        jsonRequestBody["recording"] = recording
+        jsonRequestBody["cc"] = cc
+        jsonRequestBody["cycle"] = cycle
         val request = object : JsonObjectRequest(
             SERVER_URL,
             JSONObject(jsonRequestBody),
@@ -136,16 +137,20 @@ class MainActivity : AppCompatActivity() {
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
-            postDataToServer(
-                mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
-                "recording_of_${++transmissionCycle}"
-            )
             val filteredRecording = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
             )
-            postDataToServer(filteredRecording, "cross_correlation_of_$transmissionCycle")
+            if (filteredRecording == null) {
+                submitNextTransmissionCycle()
+                return@Runnable
+            }
             //mDistanceAnalyzer.analyze()
+            postDataToServer(
+                mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
+                filteredRecording,
+                ++transmissionCycle
+            )
             submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
@@ -160,15 +165,18 @@ class MainActivity : AppCompatActivity() {
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
-        val RECORDING_SAMPLES = max(
-            2 * AudioRecord.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-            ) / 2.0,
-            // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
-            2 * SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
-        ).roundToInt()
+        val RECORDING_SAMPLES = (0.5 * SAMPLE_RATE).roundToInt()
+        //        val RECORDING_SAMPLES = max(
+//            AudioRecord.getMinBufferSize(
+//                SAMPLE_RATE,
+//                AudioFormat.CHANNEL_IN_MONO,
+//                AudioFormat.ENCODING_PCM_16BIT
+//            ) / 2.0,
+//            // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
+//            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
+//        ).roundToInt()
+        // Amount of samples to keep after chirp
+        val RECORDING_CUT_OFF = (SAMPLE_RATE * (CHIRP_DURATION + 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED)).roundToInt()
         /* DEBUG URL CONSTANTS */
         const val SERVER_URL = "http://YOUR_IP:5000/"
         const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
