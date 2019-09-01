@@ -104,10 +104,11 @@ class MainActivity : AppCompatActivity() {
         mSONARAmplitude.postValue(LineData(dataSet))
     }
 
-    private fun postDataToServer(data: DoubleArray, tag: String) {
+    private fun postDataToServer(recording: DoubleArray, cc: DoubleArray, cycle: Int) {
         val jsonRequestBody = HashMap<String, Any>(1)
-        jsonRequestBody["data"] = data
-        jsonRequestBody["tag"] = tag
+        jsonRequestBody["recording"] = recording
+        jsonRequestBody["cc"] = cc
+        jsonRequestBody["cycle"] = cycle
         val request = object : JsonObjectRequest(
             SERVER_URL,
             JSONObject(jsonRequestBody),
@@ -136,10 +137,6 @@ class MainActivity : AppCompatActivity() {
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
-            postDataToServer(
-                mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
-                "recording_of_${++transmissionCycle}"
-            )
             val filteredRecording = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
@@ -148,8 +145,12 @@ class MainActivity : AppCompatActivity() {
                 submitNextTransmissionCycle()
                 return@Runnable
             }
-            postDataToServer(filteredRecording, "cross_correlation_of_$transmissionCycle")
             //mDistanceAnalyzer.analyze()
+            postDataToServer(
+                mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
+                filteredRecording,
+                ++transmissionCycle
+            )
             submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
