@@ -3,6 +3,7 @@ package com.dginzbourg.sonarapp
 import org.apache.commons.math3.complex.Complex
 import org.jtransforms.fft.DoubleFFT_1D
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 class NoiseFilter {
@@ -22,10 +23,8 @@ class NoiseFilter {
 
         val chirpStart = max(chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5, 0.0)
         val firstSampleIndex = chirpStart.toInt()
-        val lastSampleIndex = recordedBuffer.reversed().indexOfFirst { it > RECORDING_NOISE_THRESHOLD }
-        if (lastSampleIndex == -1) return null
 
-        val n = lastSampleIndex - firstSampleIndex
+        val n = min(recordedBuffer.size - firstSampleIndex, MainActivity.RECORDING_CUT_OFF)
         if (n < pulseBuffer.size) return null
 
         // TODO: Check when is the tranmission too close to the end of the recording and invalidate this calculation.

@@ -174,6 +174,8 @@ class MainActivity : AppCompatActivity() {
 //            // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
 //            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
 //        ).roundToInt()
+        // Amount of samples to keep after chirp
+        val RECORDING_CUT_OFF = (SAMPLE_RATE * (CHIRP_DURATION + 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED)).roundToInt()
         /* DEBUG URL CONSTANTS */
         const val SERVER_URL = "http://YOUR_IP:5000/"
         const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
