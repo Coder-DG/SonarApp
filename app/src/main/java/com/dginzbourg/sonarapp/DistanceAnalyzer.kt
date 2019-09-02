@@ -6,6 +6,8 @@ class DistanceAnalyzer {
 
     companion object {
         const val BASE_SOUND_SPEED = 331
+        // todo change this
+        const val PEAK_NOISE_THRESHOLD = 10
     }
 
     fun analyze(
@@ -16,25 +18,22 @@ class DistanceAnalyzer {
         soundSpeed: Double
     ): Double {
         // find maximum peak and assume it is the transmitted peak
+        val samplesInPulse = MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE
         val transmittedPeakIndex = correlation.indexOf(correlation.max()!!)
         // the first return peak must be at least after the transmission ends
-        var returnPeakIndex = transmittedPeakIndex + minPeakDist
-        do {
-            if (returnPeakIndex > transmittedPeakIndex + maxPeakDist
-                || returnPeakIndex >= correlation.size - 1) {
-                return -1.0 // failure
+        val returnPeakIndex = transmittedPeakIndex + minPeakDist
+        for (i in returnPeakIndex + 1 until min(transmittedPeakIndex + maxPeakDist, correlation.size)) {
+            var j = i - (samplesInPulse / 2).toInt()
+            if (correlation[i] > PEAK_NOISE_THRESHOLD) {
+                while (correlation[i] > correlation[j] && j < i + (samplesInPulse / 2).toInt()) {
+                    j += 1
+                }
             }
-            // find next maximum up to a distance of maxPeakDist from the first peak
-            val slicedList = correlation.slice(
-                returnPeakIndex + 1 until
-                        min(transmittedPeakIndex + maxPeakDist, correlation.size)
-            ).toDoubleArray()
-            returnPeakIndex += slicedList.indexOf(slicedList.max()!!) + 1
-            // check distance between second peak and first peak is greater than minPeakDist and check that first peak
-            // is larger than second peak
-        } while (returnPeakIndex - transmittedPeakIndex < minPeakDist ||
-            correlation[transmittedPeakIndex] < peakRatio * correlation[returnPeakIndex]
-        )
+
+            if (j == i + (samplesInPulse / 2).toInt()) {
+                break // i is the return peak
+            }
+        }
 
         val time = (returnPeakIndex - transmittedPeakIndex) * (1.0 / MainActivity.SAMPLE_RATE)
         return soundSpeed * time
