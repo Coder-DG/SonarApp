@@ -17,9 +17,10 @@ class DistanceAnalyzer {
     ): Double {
         // find maximum peak and assume it is the transmitted peak
         val transmittedPeakIndex = correlation.indexOf(correlation.max()!!)
-        var returnPeakIndex = transmittedPeakIndex
+        // the first return peak must be at least after the transmission ends
+        var returnPeakIndex = transmittedPeakIndex + minPeakDist
         do {
-            if (returnPeakIndex > transmittedPeakIndex + maxPeakDist || correlation[returnPeakIndex] == 0.0
+            if (returnPeakIndex > transmittedPeakIndex + maxPeakDist
                 || returnPeakIndex >= correlation.size - 1) {
                 return -1.0 // failure
             }
