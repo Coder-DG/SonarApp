@@ -9,7 +9,7 @@ import kotlin.math.roundToInt
 class NoiseFilter {
     companion object {
         // TODO: change that to the correct value (or find a value)
-        const val RECORDING_NOISE_THRESHOLD = 10
+        const val RECORDING_NOISE_THRESHOLD = 10e7
         // TODO: use the value from the article
         const val CROSS_CORRELATION_SOUND_THRESHOLD = 10
     }
@@ -24,7 +24,7 @@ class NoiseFilter {
         val chirpStart = max(chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5, 0.0)
         val firstSampleIndex = chirpStart.toInt()
 
-        val n = min(recordedBuffer.size - firstSampleIndex, MainActivity.RECORDING_CUT_OFF)
+        val n = MainActivity.RECORDING_CUT_OFF
         if (n < pulseBuffer.size) return null
 
         // TODO: Check when is the tranmission too close to the end of the recording and invalidate this calculation.
@@ -38,7 +38,6 @@ class NoiseFilter {
 
         val fftCalculator = DoubleFFT_1D(n.toLong())
         var correlation = crossCorrelation(fftCalculator, pulseDoubleBuffer, recordedDoubleBuffer, n)
-        correlation = correlation.map { if (it > CROSS_CORRELATION_SOUND_THRESHOLD) it else 0.0 }.toDoubleArray()
 
         return correlation
     }

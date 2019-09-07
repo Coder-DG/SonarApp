@@ -5,8 +5,6 @@ import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.media.AudioFormat
-import android.media.AudioRecord
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
@@ -22,6 +20,7 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import org.json.JSONObject
+import java.io.BufferedReader
 import java.util.concurrent.Executors
 import kotlin.collections.ArrayList
 import kotlin.math.*
@@ -30,7 +29,7 @@ import kotlin.math.*
 class MainActivity : AppCompatActivity() {
     private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
     private var executor = Executors.newCachedThreadPool()
-    //private lateinit var mTempCalculator : TemperatureCalculator
+    private lateinit var mTempCalculator : TemperatureCalculator
     private val mListener = Listener()
     private val mTransmitter = Transmitter()
     private val mDistanceAnalyzer = DistanceAnalyzer()
@@ -52,7 +51,8 @@ class MainActivity : AppCompatActivity() {
         requestQueue = Volley.newRequestQueue(this)
         //mTempCalculator = TemperatureCalculator(this)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
-        setAmpChartGraphSettings(sonarAmplitudeChart)
+        mTempCalculator = TemperatureCalculator(this)
+//        setAmpChartGraphSettings(sonarAmplitudeChart)
         mSONARAmplitude.observe(this, Observer<LineData> {
             if (it == null)
                 return@Observer
@@ -137,23 +137,42 @@ class MainActivity : AppCompatActivity() {
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
             mTransmitter.mAudioPlayer.stop()
-            val filteredRecording = mNoiseFilter.filterNoise(
+            val correlation = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
             )
-            if (filteredRecording == null) {
+            if (correlation == null) {
                 submitNextTransmissionCycle()
                 return@Runnable
             }
-            //mDistanceAnalyzer.analyze()
+
             postDataToServer(
                 mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
-                filteredRecording,
+                correlation,
                 ++transmissionCycle
             )
+
+            val soundSpeed = 331.3 + 0.6 * mTempCalculator.getTemp()
+            val dist = mDistanceAnalyzer.analyze(MAX_PEAK_DIST, MIN_PEAK_DIST, correlation, soundSpeed)
+            val prediction = getNeuralNetworkPrediction(correlation)
+
+            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
             submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
+    }
+
+    private fun getNeuralNetworkPrediction(correlation: DoubleArray) : Double {
+        val fileWeights = resources.assets.open("MLPWeights.txt")
+        val fileBias = resources.assets.open("MLPbias.txt")
+//        val filePredict = resources.assets.open("predict.txt")
+
+        val strWeights = fileWeights.bufferedReader().use(BufferedReader::readText)
+        val strBias = fileBias.bufferedReader().use(BufferedReader::readText)
+//        val strPredict = filePredict.bufferedReader().use(BufferedReader::readText)
+//              double[] features = gson.fromJson(predict, double[].class);
+        val prediction = MLPClassifier.classify(correlation, strWeights, strBias)
+        return MLPClassifier.getDistance(prediction)
     }
 
     companion object {
@@ -164,6 +183,10 @@ class MainActivity : AppCompatActivity() {
         const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
+        // 10 meters
+        const val MAX_PEAK_DIST = 2600
+        // half chirp width
+        const val MIN_PEAK_DIST = 220
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         val RECORDING_SAMPLES = (0.5 * SAMPLE_RATE).roundToInt()
         //        val RECORDING_SAMPLES = max(
@@ -176,7 +199,7 @@ class MainActivity : AppCompatActivity() {
 //            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
 //        ).roundToInt()
         // Amount of samples to keep after chirp
-        val RECORDING_CUT_OFF = (SAMPLE_RATE * (CHIRP_DURATION + 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED)).roundToInt()
+        val RECORDING_CUT_OFF = (SAMPLE_RATE * (CHIRP_DURATION + 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED)).roundToInt() * 2
         /* DEBUG URL CONSTANTS */
         const val SERVER_URL = "http://YOUR_IP:5000/"
         const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
