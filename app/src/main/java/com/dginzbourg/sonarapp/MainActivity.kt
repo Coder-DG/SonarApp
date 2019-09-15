@@ -72,7 +72,13 @@ class MainActivity : AppCompatActivity() {
             } catch (_: NumberFormatException) {
                 return@setOnClickListener
             }
-            submitNextTransmissionCycle()
+            executor.submit(
+                SonarThread(Runnable {
+                    Thread.sleep(1000)
+                    submitNextTransmissionCycle()
+                })
+            )
+
         }
         Log.d(LOG_TAG, "App started")
     }
@@ -127,14 +133,15 @@ class MainActivity : AppCompatActivity() {
         jsonRequestBody["real_distance"] = "${mRealDistance}m"
         jsonRequestBody["cycle"] = cycle
         jsonRequestBody["prediction"] = prediction
+        jsonRequestBody["extra_info"] = EXTRA_INFO
         val request = object : JsonObjectRequest(
             SERVER_URL,
             JSONObject(jsonRequestBody),
             Response.Listener<JSONObject> {
-                Log.d(LOG_TAG, "Server replied with $it")
+                Log.d(LOG_TAG, "Server replied with $it for cycle $cycle")
             },
             Response.ErrorListener {
-                Log.e(LOG_TAG, "Error sending data to server: $it")
+                Log.e(LOG_TAG, "Error sending data to server: $it for cycle $cycle")
             }
         ) {
             override fun getHeaders(): MutableMap<String, String> {
@@ -230,6 +237,8 @@ class MainActivity : AppCompatActivity() {
         const val REQUESTS_CONTENT_TYPE_JSON = "application/json"
         const val LOCATION = "xxx"
         const val REAL_DISTANCE = 123.123f
+        const val EXTRA_INFO = "Any extra info you'd like to add. It'll be saved with the sample."
+        // When true, it will wait for user to write the distance in the edittext and press the button
         const val INTERACTIVE = false
         // write "= null" if you don't want it to stop
         const val STOP_AFTER = 10
