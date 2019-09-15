@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity() {
         jsonRequestBody["recording"] = recording
         jsonRequestBody["cc"] = cc
         jsonRequestBody["location"] = LOCATION
-        jsonRequestBody["real_distance"] = mRealDistance
+        jsonRequestBody["real_distance"] = "${mRealDistance}m"
         jsonRequestBody["cycle"] = cycle
         jsonRequestBody["prediction"] = prediction
         val request = object : JsonObjectRequest(
