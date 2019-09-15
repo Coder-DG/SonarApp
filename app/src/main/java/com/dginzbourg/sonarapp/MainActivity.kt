@@ -11,6 +11,8 @@ import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
+import android.widget.Button
+import android.widget.EditText
 import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
@@ -37,6 +39,8 @@ class MainActivity : AppCompatActivity() {
     private val mNoiseFilter = NoiseFilter()
     private lateinit var requestQueue: RequestQueue
     private var networkRequests = AtomicInteger()
+    private lateinit var mRealDistanceEditText: EditText
+    private var mRealDistance = REAL_DISTANCE
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,7 +55,6 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main)
         requestQueue = Volley.newRequestQueue(this)
-        //mTempCalculator = TemperatureCalculator(this)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
         mTempCalculator = TemperatureCalculator(this)
 //        setAmpChartGraphSettings(sonarAmplitudeChart)
@@ -61,6 +64,18 @@ class MainActivity : AppCompatActivity() {
             sonarAmplitudeChart.data = it
             sonarAmplitudeChart.invalidate()
         })
+        mRealDistanceEditText = findViewById(R.id.distanceEditText)
+        findViewById<Button>(R.id.startRecrodingButton).setOnClickListener {
+            transmissionCycle = 0
+            val realDistanceString = mRealDistanceEditText.text.toString()
+            if (realDistanceString.isEmpty()) return@setOnClickListener
+            try {
+                mRealDistance = realDistanceString.toFloat()
+            } catch (_: NumberFormatException) {
+                return@setOnClickListener
+            }
+            submitNextTransmissionCycle()
+        }
         Log.d(LOG_TAG, "App started")
     }
 
@@ -81,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         requestQueue = Volley.newRequestQueue(this)
         mTransmitter.init()
         mListener.init()
-        submitNextTransmissionCycle()
+        if (!INTERACTIVE) submitNextTransmissionCycle()
         super.onResume()
     }
 
@@ -111,7 +126,7 @@ class MainActivity : AppCompatActivity() {
         jsonRequestBody["recording"] = recording
         jsonRequestBody["cc"] = cc
         jsonRequestBody["location"] = LOCATION
-        jsonRequestBody["real_distance"] = REAL_DISTANCE
+        jsonRequestBody["real_distance"] = mRealDistance
         jsonRequestBody["cycle"] = cycle
         jsonRequestBody["prediction"] = prediction
         val request = object : JsonObjectRequest(
@@ -223,7 +238,8 @@ class MainActivity : AppCompatActivity() {
         const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
         const val REQUESTS_CONTENT_TYPE_JSON = "application/json"
         const val LOCATION = "xxx"
-        const val REAL_DISTANCE = "123m"
+        const val REAL_DISTANCE = 123.123f
+        const val INTERACTIVE = false
         // write "= null" if you don't want it to stop
         const val STOP_AFTER = 10
         var transmissionCycle = 0
