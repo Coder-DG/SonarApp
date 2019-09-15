@@ -9,9 +9,7 @@ import kotlin.math.roundToInt
 class NoiseFilter {
     companion object {
         // TODO: change that to the correct value (or find a value)
-        const val RECORDING_NOISE_THRESHOLD = 10e7
-        // TODO: use the value from the article
-        const val CROSS_CORRELATION_SOUND_THRESHOLD = 10
+        const val RECORDING_NOISE_THRESHOLD = 10
     }
 
     fun filterNoise(
@@ -27,7 +25,7 @@ class NoiseFilter {
         val n = MainActivity.RECORDING_CUT_OFF
         if (n < pulseBuffer.size) return null
 
-        // TODO: Check when is the tranmission too close to the end of the recording and invalidate this calculation.
+        // TODO: Check when is the tranmission too close to the end of the recording and return null.
         val recordedDoubleBuffer = DoubleArray(n * 2)
         val pulseDoubleBuffer = DoubleArray(n * 2)
         // Filling up the real values, leaving the imaginary values as 0's
@@ -37,9 +35,7 @@ class NoiseFilter {
         }
 
         val fftCalculator = DoubleFFT_1D(n.toLong())
-        var correlation = crossCorrelation(fftCalculator, pulseDoubleBuffer, recordedDoubleBuffer, n)
-
-        return correlation
+        return crossCorrelation(fftCalculator, pulseDoubleBuffer, recordedDoubleBuffer, n)
     }
 
     private fun crossCorrelation(
