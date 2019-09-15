@@ -106,11 +106,14 @@ class MainActivity : AppCompatActivity() {
         mSONARAmplitude.postValue(LineData(dataSet))
     }
 
-    private fun postDataToServer(recording: DoubleArray, cc: DoubleArray, cycle: Int) {
+    private fun postDataToServer(recording: DoubleArray, cc: DoubleArray, cycle: Int, prediction: Double) {
         val jsonRequestBody = HashMap<String, Any>(1)
         jsonRequestBody["recording"] = recording
         jsonRequestBody["cc"] = cc
+        jsonRequestBody["location"] = LOCATION
+        jsonRequestBody["real_distance"] = REAL_DISTANCE
         jsonRequestBody["cycle"] = cycle
+        jsonRequestBody["prediction"] = prediction
         val request = object : JsonObjectRequest(
             SERVER_URL,
             JSONObject(jsonRequestBody),
@@ -148,17 +151,18 @@ class MainActivity : AppCompatActivity() {
                 return@Runnable
             }
 
+
+            val soundSpeed = 331.3 + 0.606 * mTempCalculator.getTemp()
+//            val dist = mDistanceAnalyzer.analyze(MAX_PEAK_DIST, MIN_PEAK_DIST, correlation, soundSpeed)
+            val prediction = getNeuralNetworkPrediction(correlation)
+
             postDataToServer(
                 mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
                 correlation,
-                ++transmissionCycle
+                ++transmissionCycle,
+                prediction
             )
-
-            val soundSpeed = 331.3 + 0.6 * mTempCalculator.getTemp()
-            val dist = mDistanceAnalyzer.analyze(MAX_PEAK_DIST, MIN_PEAK_DIST, correlation, soundSpeed)
-            val prediction = getNeuralNetworkPrediction(correlation)
-
-            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
+//            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
             submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
@@ -188,7 +192,7 @@ class MainActivity : AppCompatActivity() {
         // 10 meters
         const val MAX_PEAK_DIST = 2600
         // half chirp width
-        const val MIN_PEAK_DIST = 220
+        val MIN_PEAK_DIST = (CHIRP_DURATION * SAMPLE_RATE * 0.5).roundToInt()
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         val RECORDING_SAMPLES = (0.5 * SAMPLE_RATE).roundToInt()
         //        val RECORDING_SAMPLES = max(
@@ -201,11 +205,14 @@ class MainActivity : AppCompatActivity() {
 //            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
 //        ).roundToInt()
         // Amount of samples to keep after chirp
-        val RECORDING_CUT_OFF = (SAMPLE_RATE * (CHIRP_DURATION + 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED)).roundToInt() * 2
+        val RECORDING_CUT_OFF = (SAMPLE_RATE * (CHIRP_DURATION + 13.0 / DistanceAnalyzer.BASE_SOUND_SPEED)
+                ).roundToInt() * 2
         /* DEBUG URL CONSTANTS */
         const val SERVER_URL = "http://YOUR_IP:5000/"
         const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
         const val REQUESTS_CONTENT_TYPE_JSON = "application/json"
+        const val LOCATION = "xxx"
+        const val REAL_DISTANCE = "123m"
         var transmissionCycle = 0
     }
 }
