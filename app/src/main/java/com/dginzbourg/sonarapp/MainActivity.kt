@@ -22,6 +22,7 @@ import com.github.mikephil.charting.data.LineDataSet
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
 import kotlin.math.*
 
@@ -35,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private val mDistanceAnalyzer = DistanceAnalyzer()
     private val mNoiseFilter = NoiseFilter()
     private lateinit var requestQueue: RequestQueue
+    private var networkRequests = AtomicInteger()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,9 +119,11 @@ class MainActivity : AppCompatActivity() {
             JSONObject(jsonRequestBody),
             Response.Listener<JSONObject> {
                 Log.d(LOG_TAG, "Server replied with $it")
+                networkRequests.getAndDecrement()
             },
             Response.ErrorListener {
                 Log.e(LOG_TAG, "Error sending data to server: $it")
+                networkRequests.getAndDecrement()
             }
         ) {
             override fun getHeaders(): MutableMap<String, String> {
@@ -130,10 +134,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         requestQueue.add(request)
+        networkRequests.getAndIncrement()
     }
 
     private fun submitNextTransmissionCycle() {
-        if (transmissionCycle > (STOP_AFTER ?: Int.MAX_VALUE)) {
+        if (++transmissionCycle > (STOP_AFTER ?: Int.MAX_VALUE)) {
+            while (networkRequests.get() != 0) {
+                continue
+            }
             finish()
             return
         }
@@ -162,7 +170,7 @@ class MainActivity : AppCompatActivity() {
             postDataToServer(
                 mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
                 correlation,
-                ++transmissionCycle,
+                transmissionCycle,
                 prediction
             )
 //            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
