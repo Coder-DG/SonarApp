@@ -63,6 +63,7 @@ class MainActivity : AppCompatActivity() {
             sonarAmplitudeChart.invalidate()
         })
         mRealDistanceEditText = findViewById(R.id.distanceEditText)
+        mRealDistanceEditText.setText(mRealDistance.toString())
         findViewById<Button>(R.id.startRecrodingButton).setOnClickListener {
             transmissionCycle = 0
             val realDistanceString = mRealDistanceEditText.text.toString()
