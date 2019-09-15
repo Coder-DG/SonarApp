@@ -10,11 +10,15 @@ import android.hardware.SensorManager
 
 class TemperatureCalculator(context: Context) : SensorEventListener {
     private val sensorManager: SensorManager = context.getSystemService(SENSOR_SERVICE) as SensorManager
-    private val tempSensor: Sensor
+    private var tempSensor: Sensor? = null
 
     init {
-        tempSensor = sensorManager.getDefaultSensor(Sensor.TYPE_AMBIENT_TEMPERATURE)
-        sensorManager.registerListener(this, tempSensor, SensorManager.SENSOR_DELAY_NORMAL)
+        if (sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null) {
+            tempSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            sensorManager.registerListener(this, tempSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        } else {
+            // fai! we dont have an accelerometer!
+        }
     }
 
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
