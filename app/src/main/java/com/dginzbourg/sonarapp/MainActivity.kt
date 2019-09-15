@@ -5,8 +5,6 @@ import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.media.AudioFormat
-import android.media.AudioRecord
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
@@ -31,7 +29,7 @@ import kotlin.math.*
 class MainActivity : AppCompatActivity() {
     private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
     private var executor = Executors.newCachedThreadPool()
-    private lateinit var mTempCalculator : TemperatureCalculator
+    private lateinit var mTempCalculator: TemperatureCalculator
     private val mListener = Listener()
     private val mTransmitter = Transmitter()
     private val mDistanceAnalyzer = DistanceAnalyzer()
@@ -135,6 +133,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun submitNextTransmissionCycle() {
+        if (transmissionCycle > (STOP_AFTER ?: Int.MAX_VALUE)) {
+            finish()
+            return
+        }
+
         val transmissionCycle = SonarThread(Runnable {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             mListener.mAudioRecorder.startRecording()
@@ -168,7 +171,7 @@ class MainActivity : AppCompatActivity() {
         executor.submit(transmissionCycle)
     }
 
-    private fun getNeuralNetworkPrediction(correlation: DoubleArray) : Double {
+    private fun getNeuralNetworkPrediction(correlation: DoubleArray): Double {
         val fileWeights = resources.assets.open("MLPWeights.txt")
         val fileBias = resources.assets.open("MLPbias.txt")
 //        val filePredict = resources.assets.open("predict.txt")
@@ -189,10 +192,10 @@ class MainActivity : AppCompatActivity() {
         const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
-        // 10 meters
-        const val MAX_PEAK_DIST = 2600
-        // half chirp width
-        val MIN_PEAK_DIST = (CHIRP_DURATION * SAMPLE_RATE * 0.5).roundToInt()
+        //        // 10 meters
+//        const val MAX_PEAK_DIST = 2600
+//        // half chirp width
+//        val MIN_PEAK_DIST = (CHIRP_DURATION * SAMPLE_RATE * 0.5).roundToInt()
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         val RECORDING_SAMPLES = (0.5 * SAMPLE_RATE).roundToInt()
         //        val RECORDING_SAMPLES = max(
@@ -213,6 +216,8 @@ class MainActivity : AppCompatActivity() {
         const val REQUESTS_CONTENT_TYPE_JSON = "application/json"
         const val LOCATION = "xxx"
         const val REAL_DISTANCE = "123m"
+        // write "= null" if you don't want it to stop
+        const val STOP_AFTER = 10
         var transmissionCycle = 0
     }
 }
