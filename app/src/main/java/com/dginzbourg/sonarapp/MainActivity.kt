@@ -10,9 +10,12 @@ import android.os.Bundle
 import android.os.Process
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import com.android.volley.RequestQueue
 import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
@@ -37,7 +40,6 @@ class MainActivity : AppCompatActivity() {
     private val mDistanceAnalyzer = DistanceAnalyzer()
     private val mNoiseFilter = NoiseFilter()
     private lateinit var requestQueue: RequestQueue
-    private lateinit var mRealDistanceEditText: EditText
     private var mRealDistance = REAL_DISTANCE
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,11 +64,30 @@ class MainActivity : AppCompatActivity() {
             sonarAmplitudeChart.data = it
             sonarAmplitudeChart.invalidate()
         })
-        mRealDistanceEditText = findViewById(R.id.distanceEditText)
-        mRealDistanceEditText.setText(mRealDistance.toString())
+        val distanceInInchesTextView: TextView = findViewById(R.id.distanceInInches)
+        val realDistanceEditText: EditText = findViewById(R.id.distanceEditText)
+        realDistanceEditText.setText(mRealDistance.toString())
+        realDistanceEditText.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                s ?: return
+                try {
+                    mRealDistance = s.toString().toFloat()
+                } catch (_: NumberFormatException) {
+                    return
+                }
+                val distanceString = "%.2f".format(mRealDistance * 39.37)
+                distanceInInchesTextView.text = distanceString
+            }
+        })
         findViewById<Button>(R.id.startRecrodingButton).setOnClickListener {
             transmissionCycle = 0
-            val realDistanceString = mRealDistanceEditText.text.toString()
+            val realDistanceString = realDistanceEditText.text.toString()
             if (realDistanceString.isEmpty()) return@setOnClickListener
             try {
                 mRealDistance = realDistanceString.toFloat()
