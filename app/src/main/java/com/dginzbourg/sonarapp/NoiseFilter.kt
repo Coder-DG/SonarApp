@@ -22,7 +22,7 @@ class NoiseFilter {
         val chirpStart = max(chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5, 0.0)
         val firstSampleIndex = chirpStart.toInt()
 
-        val n = MainActivity.RECORDING_CUT_OFF
+        val n = min(recordedBuffer.size - firstSampleIndex, MainActivity.RECORDING_CUT_OFF)
         if (n < pulseBuffer.size) return null
 
         // TODO: Check when is the tranmission too close to the end of the recording and return null.
