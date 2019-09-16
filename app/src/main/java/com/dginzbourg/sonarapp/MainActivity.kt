@@ -81,7 +81,7 @@ class MainActivity : AppCompatActivity() {
                 } catch (_: NumberFormatException) {
                     return
                 }
-                val distanceString = "%.2f".format(mRealDistance * 39.37)
+                val distanceString = "In inches: %.2f".format(mRealDistance * 39.37)
                 distanceInInchesTextView.text = distanceString
             }
         })
