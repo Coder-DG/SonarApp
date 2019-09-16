@@ -41,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private val mNoiseFilter = NoiseFilter()
     private lateinit var requestQueue: RequestQueue
     private var mRealDistance = REAL_DISTANCE
+    private var mLocation = LOCATION
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,7 +65,8 @@ class MainActivity : AppCompatActivity() {
             sonarAmplitudeChart.data = it
             sonarAmplitudeChart.invalidate()
         })
-        val distanceInInchesTextView: TextView = findViewById(R.id.distanceInInches)
+        val locationEditText = findViewById<EditText>(R.id.locationEditText)
+        val distanceInInchesTextView = findViewById<TextView>(R.id.distanceInInches)
         val realDistanceEditText: EditText = findViewById(R.id.distanceEditText)
         realDistanceEditText.setText(mRealDistance.toString())
         realDistanceEditText.addTextChangedListener(object : TextWatcher {
@@ -75,14 +77,25 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                s ?: return
                 try {
-                    mRealDistance = s.toString().toFloat()
+                    mRealDistance = s?.toString()?.toFloat() ?: return
                 } catch (_: NumberFormatException) {
                     return
                 }
                 val distanceString = "In inches: %.2f".format(mRealDistance * 39.37)
                 distanceInInchesTextView.text = distanceString
+            }
+        })
+        locationEditText.setText(mLocation)
+        locationEditText.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                mLocation = s?.toString() ?: return
             }
         })
         findViewById<Button>(R.id.startRecrodingButton).setOnClickListener {
@@ -151,7 +164,7 @@ class MainActivity : AppCompatActivity() {
         val jsonRequestBody = HashMap<String, Any>(1)
         jsonRequestBody["recording"] = recording
         jsonRequestBody["cc"] = cc
-        jsonRequestBody["location"] = LOCATION
+        jsonRequestBody["location"] = mLocation
         jsonRequestBody["real_distance"] = "${mRealDistance}m"
         jsonRequestBody["cycle"] = cycle
         jsonRequestBody["prediction"] = prediction
