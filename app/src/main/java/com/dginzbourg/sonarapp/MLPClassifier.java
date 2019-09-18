@@ -28,19 +28,8 @@ class MLPClassifier {
     }
 
     public static double getDistance(int prediction) {
-        if (prediction == 0) {
-            return 1.0;
-        } else if (prediction == 1) {
-            return 2.0;
-        } else if (prediction == 2) {
-            return 3.0;
-        } else if (prediction == 3) {
-            return 2.9718;
-        } else if (prediction == 4) {
-            return 4.3307;
-        } else {
-            return -1;
-        }
+        // Prediction is in cm
+        return prediction / 10.0;
     }
 
     private double[] compute(Activation activation, double[] v) {
