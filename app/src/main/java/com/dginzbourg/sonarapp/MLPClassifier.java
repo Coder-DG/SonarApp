@@ -102,13 +102,9 @@ class MLPClassifier {
 
     }
 
-    public static int classify(double[] features, String strWeights, String strBias) {
+    public static int classify(double[] features, double[][][] weights, double[][] bias) {
         // Parameters:
-        int[] layers = {500, 6};
-        Gson gson = new Gson();
-        double[][][] weights = gson.fromJson(strWeights, double[][][].class);
-        double[][] bias = gson.fromJson(strBias, double[][].class);
-//      double[] features = gson.fromJson(feature, double[].class);
+        int[] layers = {800, 34};
 
         // Prediction:
         MLPClassifier clf = new MLPClassifier("relu", "softmax", layers, weights, bias);

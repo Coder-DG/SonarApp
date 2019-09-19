@@ -24,8 +24,10 @@ import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.google.gson.Gson
+import com.google.gson.stream.JsonReader
 import org.json.JSONObject
-import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.util.concurrent.Executors
 import kotlin.collections.ArrayList
 import kotlin.math.*
@@ -228,15 +230,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getNeuralNetworkPrediction(correlation: DoubleArray): Double {
-        val fileWeights = resources.assets.open("MLPWeights.txt")
-        val fileBias = resources.assets.open("MLPbias.txt")
-//        val filePredict = resources.assets.open("predict.txt")
+        val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.txt")))
+        val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.txt")))
+        val json = Gson()
+        val weights = json.fromJson<Array<Array<DoubleArray>>>(
+            weightsReader,
+            Array<Array<DoubleArray>>::class.java
+        )
+        val bias = json.fromJson<Array<DoubleArray>>(
+            biasReader,
+            Array<DoubleArray>::class.java
+        )
 
-        val strWeights = fileWeights.bufferedReader().use(BufferedReader::readText)
-        val strBias = fileBias.bufferedReader().use(BufferedReader::readText)
-//        val strPredict = filePredict.bufferedReader().use(BufferedReader::readText)
-//              double[] features = gson.fromJson(predict, double[].class);
-        val prediction = MLPClassifier.classify(correlation, strWeights, strBias)
+        val prediction = MLPClassifier.classify(correlation, weights, bias)
         return MLPClassifier.getDistance(prediction)
     }
 
