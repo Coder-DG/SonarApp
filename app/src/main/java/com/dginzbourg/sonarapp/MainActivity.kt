@@ -44,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var requestQueue: RequestQueue
     private var mRealDistance = REAL_DISTANCE
     private var mLocation = LOCATION
+    private var mMLPClassifier = MutableLiveData<MLPClassifier>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,7 +118,31 @@ class MainActivity : AppCompatActivity() {
             )
 
         }
+        initMLPClassifier()
         Log.d(LOG_TAG, "App started")
+    }
+
+    private fun initMLPClassifier() {
+        executor.submit(
+            SonarThread(Runnable {
+                Log.d(LOG_TAG, "Loading MLP JSON files...")
+                val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.json")))
+                val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.json")))
+                val json = Gson()
+                val weights = json.fromJson<Array<Array<DoubleArray>>>(
+                    weightsReader,
+                    Array<Array<DoubleArray>>::class.java
+                )
+                val bias = json.fromJson<Array<DoubleArray>>(
+                    biasReader,
+                    Array<DoubleArray>::class.java
+                )
+                Log.d(LOG_TAG, "Building MLP instance...")
+                val clf = MLPClassifier.buildClassifier(weights, bias)
+                Log.d(LOG_TAG, "Done building MLP instance.")
+                mMLPClassifier.postValue(clf)
+            })
+        )
     }
 
     private fun setAmpChartGraphSettings(sonarAmplitudeChart: LineChart) {
@@ -197,6 +222,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val transmissionCycle = SonarThread(Runnable {
+            while (mMLPClassifier.value == null) {
+                continue
+            }
+
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
@@ -213,15 +242,20 @@ class MainActivity : AppCompatActivity() {
             }
 
 
-            val soundSpeed = 331.3 + 0.606 * mTempCalculator.getTemp()
+//            val soundSpeed = 331.3 + 0.606 * mTempCalculator.getTemp()
 //            val dist = mDistanceAnalyzer.analyze(MAX_PEAK_DIST, MIN_PEAK_DIST, correlation, soundSpeed)
-            val prediction = getNeuralNetworkPrediction(correlation)
+
+            val prediction: Int? = mMLPClassifier.value?.predict(correlation)
+            if (prediction == null) {
+                showErrorMessage()
+                return@Runnable
+            }
 
             postDataToServer(
                 mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
                 correlation,
                 transmissionCycle,
-                prediction
+                prediction / 10.0
             )
 //            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
             submitNextTransmissionCycle()
@@ -229,22 +263,26 @@ class MainActivity : AppCompatActivity() {
         executor.submit(transmissionCycle)
     }
 
-    private fun getNeuralNetworkPrediction(correlation: DoubleArray): Double {
-        val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.json")))
-        val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.json")))
-        val json = Gson()
-        val weights = json.fromJson<Array<Array<DoubleArray>>>(
-            weightsReader,
-            Array<Array<DoubleArray>>::class.java
-        )
-        val bias = json.fromJson<Array<DoubleArray>>(
-            biasReader,
-            Array<DoubleArray>::class.java
-        )
-
-        val prediction = MLPClassifier.classify(correlation, weights, bias)
-        return MLPClassifier.getDistance(prediction)
+    private fun showErrorMessage() {
+        // "Please restart the app" or something.
     }
+//
+//    private fun getNeuralNetworkPrediction(correlation: DoubleArray): Double {
+//        val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.json")))
+//        val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.json")))
+//        val json = Gson()
+//        val weights = json.fromJson<Array<Array<DoubleArray>>>(
+//            weightsReader,
+//            Array<Array<DoubleArray>>::class.java
+//        )
+//        val bias = json.fromJson<Array<DoubleArray>>(
+//            biasReader,
+//            Array<DoubleArray>::class.java
+//        )
+//
+//        val prediction = MLPClassifier.classify(correlation, weights, bias)
+//        return MLPClassifier.getDistance(prediction)
+//    }
 
     companion object {
         // TODO: go ultrasonic when this works (min: 20, max: 22)

@@ -1,7 +1,5 @@
 package com.dginzbourg.sonarapp;
 
-import com.google.gson.Gson;
-
 class MLPClassifier {
 
     private enum Activation {IDENTITY, LOGISTIC, RELU, TANH, SOFTMAX}
@@ -102,12 +100,8 @@ class MLPClassifier {
 
     }
 
-    public static int classify(double[] features, double[][][] weights, double[][] bias) {
-        // Parameters:
+    public static MLPClassifier buildClassifier(double[][][] weights, double[][] bias) {
         int[] layers = {800, 34};
-
-        // Prediction:
-        MLPClassifier clf = new MLPClassifier("relu", "softmax", layers, weights, bias);
-        return clf.predict(features);
+        return new MLPClassifier("relu", "softmax", layers, weights, bias);
     }
 }
