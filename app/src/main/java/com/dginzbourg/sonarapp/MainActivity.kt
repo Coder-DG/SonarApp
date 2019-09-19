@@ -230,8 +230,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getNeuralNetworkPrediction(correlation: DoubleArray): Double {
-        val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.txt")))
-        val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.txt")))
+        val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.json")))
+        val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.json")))
         val json = Gson()
         val weights = json.fromJson<Array<Array<DoubleArray>>>(
             weightsReader,
