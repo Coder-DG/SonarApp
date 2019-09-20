@@ -1,13 +1,14 @@
 package com.dginzbourg.sonarapp
 
-import java.lang.Math.min
+import kotlin.math.pow
+import kotlin.math.min
 
 class DistanceAnalyzer {
 
     companion object {
         const val BASE_SOUND_SPEED = 331
         // todo change this
-        const val PEAK_NOISE_THRESHOLD = 1e9
+        val PEAK_NOISE_THRESHOLD = 10.0.pow(0.7)
     }
 
     fun analyze(

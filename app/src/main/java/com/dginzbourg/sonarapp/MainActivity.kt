@@ -301,9 +301,8 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         // TODO: go ultrasonic when this works (min: 20, max: 22)
-        const val MIN_CHIRP_FREQ = 8000.0
-        const val MAX_CHIRP_FREQ = 8000.0
-        // TODO: try shorten the chirp to try cover only 1m
+        const val MIN_CHIRP_FREQ = 3000.0
+        const val MAX_CHIRP_FREQ = MIN_CHIRP_FREQ
         const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
@@ -335,7 +334,7 @@ class MainActivity : AppCompatActivity() {
         // When true, it will wait for user to write the distance in the edittext and press the button
         const val INTERACTIVE = false
         // write "= null" if you don't want it to stop
-        const val STOP_AFTER = 10
+        const val STOP_AFTER = 20
         var transmissionCycle = 0
     }
 }
