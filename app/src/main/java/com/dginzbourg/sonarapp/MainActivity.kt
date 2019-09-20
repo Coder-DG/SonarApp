@@ -201,8 +201,8 @@ class MainActivity : AppCompatActivity() {
         jsonRequestBody["location"] = mLocation
         jsonRequestBody["real_distance"] = "${mRealDistance}m"
         jsonRequestBody["cycle"] = cycle
-        jsonRequestBody["mlp_prediction"] = peaksPrediction
-        jsonRequestBody["peaks_prediction"] = mlpPrediction
+        jsonRequestBody["peaks_prediction"] = peaksPrediction
+        jsonRequestBody["mlp_prediction"] = mlpPrediction
         jsonRequestBody["extra_info"] = EXTRA_INFO
         val request = object : JsonObjectRequest(
             SERVER_URL,
