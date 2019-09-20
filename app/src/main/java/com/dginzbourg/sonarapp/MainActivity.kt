@@ -118,7 +118,7 @@ class MainActivity : AppCompatActivity() {
             )
 
         }
-        initMLPClassifier()
+//        initMLPClassifier()
         Log.d(LOG_TAG, "App started")
     }
 
@@ -159,6 +159,7 @@ class MainActivity : AppCompatActivity() {
 
 
     override fun onResume() {
+        if (executor.isShutdown) executor = Executors.newCachedThreadPool()
         requestQueue = Volley.newRequestQueue(this)
         mTransmitter.init()
         mListener.init()
@@ -187,14 +188,21 @@ class MainActivity : AppCompatActivity() {
         mSONARAmplitude.postValue(LineData(dataSet))
     }
 
-    private fun postDataToServer(recording: DoubleArray, cc: DoubleArray, cycle: Int, prediction: Double) {
+    private fun postDataToServer(
+        recording: DoubleArray,
+        cc: DoubleArray,
+        cycle: Int,
+        peaksPrediction: Double,
+        mlpPrediction: Double
+    ) {
         val jsonRequestBody = HashMap<String, Any>(1)
         jsonRequestBody["recording"] = recording
         jsonRequestBody["cc"] = cc
         jsonRequestBody["location"] = mLocation
         jsonRequestBody["real_distance"] = "${mRealDistance}m"
         jsonRequestBody["cycle"] = cycle
-        jsonRequestBody["prediction"] = prediction
+        jsonRequestBody["mlp_prediction"] = peaksPrediction
+        jsonRequestBody["peaks_prediction"] = mlpPrediction
         jsonRequestBody["extra_info"] = EXTRA_INFO
         val request = object : JsonObjectRequest(
             SERVER_URL,
@@ -222,9 +230,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         val transmissionCycle = SonarThread(Runnable {
-            while (mMLPClassifier.value == null) {
-                continue
-            }
+            //            while (mMLPClassifier.value == null) {
+//                continue
+//            }
 
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             mListener.mAudioRecorder.startRecording()
@@ -242,20 +250,27 @@ class MainActivity : AppCompatActivity() {
             }
 
 
-//            val soundSpeed = 331.3 + 0.606 * mTempCalculator.getTemp()
-//            val dist = mDistanceAnalyzer.analyze(MAX_PEAK_DIST, MIN_PEAK_DIST, correlation, soundSpeed)
-
-            val prediction: Int? = mMLPClassifier.value?.predict(correlation)
-            if (prediction == null) {
-                showErrorMessage()
+            val soundSpeed = 331.3 + 0.606 * mTempCalculator.getTemp()
+            val peaksPrediction = mDistanceAnalyzer.analyze(MAX_PEAK_DIST, MIN_PEAK_DIST, correlation, soundSpeed)
+            if (peaksPrediction == null) {
+                submitNextTransmissionCycle()
                 return@Runnable
             }
+
+//            val predictionClass: Int? = mMLPClassifier.value?.predict(correlation)
+//            if (predictionClass == null) {
+//                showErrorMessage()
+//                return@Runnable
+//            }
+//            val prediction = predictionClass / 10.0
+
 
             postDataToServer(
                 mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
                 correlation,
                 transmissionCycle,
-                prediction / 10.0
+                peaksPrediction,
+                mlpPrediction = -1.0
             )
 //            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
             submitNextTransmissionCycle()
@@ -292,10 +307,10 @@ class MainActivity : AppCompatActivity() {
         const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
         const val LOG_TAG = "sonar_app"
-        //        // 10 meters
-//        const val MAX_PEAK_DIST = 2600
-//        // half chirp width
-//        val MIN_PEAK_DIST = (CHIRP_DURATION * SAMPLE_RATE * 0.5).roundToInt()
+        // 10 meters
+        const val MAX_PEAK_DIST = 2600
+        // half chirp width
+        val MIN_PEAK_DIST = (CHIRP_DURATION * SAMPLE_RATE * 0.5).roundToInt()
         // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         val RECORDING_SAMPLES = (0.5 * SAMPLE_RATE).roundToInt()
         //        val RECORDING_SAMPLES = max(

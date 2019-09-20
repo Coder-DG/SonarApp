@@ -15,11 +15,12 @@ class DistanceAnalyzer {
         minPeakDist: Int,
         correlation: DoubleArray,
         soundSpeed: Double
-    ): Double {
+    ): Double? {
         // todo change: width of peak
         val peakWidth = MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE
         // find maximum peak and assume it is the transmitted peak
-        val transmittedPeakIndex = correlation.indexOf(correlation.max()!!)
+        val ccMax = correlation.max() ?: return null
+        val transmittedPeakIndex = correlation.indexOf(ccMax)
         // the first return peak must be at least after the transmission ends
         var returnPeakIndex = transmittedPeakIndex + minPeakDist
         for (i in returnPeakIndex + 1 until min(transmittedPeakIndex + maxPeakDist, correlation.size)) {
