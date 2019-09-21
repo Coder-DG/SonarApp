@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
+import android.speech.tts.TextToSpeech
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.text.Editable
@@ -26,14 +27,18 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
+import kotlinx.android.synthetic.main.activity_main.view.*
 import org.json.JSONObject
 import java.io.InputStreamReader
+import java.lang.Thread.sleep
+import java.util.*
 import java.util.concurrent.Executors
 import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 import kotlin.math.*
 
 // TODO: Performance enhancements
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
     private var executor = Executors.newCachedThreadPool()
     private lateinit var mTempCalculator: TemperatureCalculator
@@ -45,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private var mRealDistance = REAL_DISTANCE
     private var mLocation = LOCATION
     private var mMLPClassifier = MutableLiveData<MLPClassifier>()
+    private var tts: TextToSpeech? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -118,8 +124,24 @@ class MainActivity : AppCompatActivity() {
             )
 
         }
+
+        tts = TextToSpeech(this, this)
 //        initMLPClassifier()
         Log.d(LOG_TAG, "App started")
+    }
+
+    override fun onInit(status: Int) {
+
+        if (status == TextToSpeech.SUCCESS) {
+            val result = tts!!.setLanguage(Locale.UK)
+
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.e("TTS","The Language specified is not supported!")
+            }
+        } else {
+            Log.e("TTS", "Initilization Failed!")
+        }
+
     }
 
     private fun initMLPClassifier() {
@@ -249,13 +271,20 @@ class MainActivity : AppCompatActivity() {
                 return@Runnable
             }
 
-
             val soundSpeed = 331.3 + 0.606 * mTempCalculator.getTemp()
             val peaksPrediction = mDistanceAnalyzer.analyze(MAX_PEAK_DIST, MIN_PEAK_DIST, correlation, soundSpeed)
             if (peaksPrediction == null) {
                 submitNextTransmissionCycle()
                 return@Runnable
+            } else {
+                if (transmissionCycle % 3 == 0) {
+                    // TODO add as textview text if want to display on screen
+                    val distanceString = "%.2f".format(peaksPrediction)
+                    tts!!.speak(distanceString, TextToSpeech.QUEUE_FLUSH, null, "")
+                    sleep(2000)
+                }
             }
+
 
 //            val predictionClass: Int? = mMLPClassifier.value?.predict(correlation)
 //            if (predictionClass == null) {
