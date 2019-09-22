@@ -118,7 +118,7 @@ class MainActivity : AppCompatActivity() {
             )
 
         }
-//        initMLPClassifier()
+        initMLPClassifier()
         Log.d(LOG_TAG, "App started")
     }
 
@@ -230,9 +230,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         val transmissionCycle = SonarThread(Runnable {
-            //            while (mMLPClassifier.value == null) {
-//                continue
-//            }
+            while (mMLPClassifier.value == null) {
+                continue
+            }
 
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             mListener.mAudioRecorder.startRecording()
@@ -257,20 +257,20 @@ class MainActivity : AppCompatActivity() {
                 return@Runnable
             }
 
-//            val predictionClass: Int? = mMLPClassifier.value?.predict(correlation)
-//            if (predictionClass == null) {
-//                showErrorMessage()
-//                return@Runnable
-//            }
-//            val prediction = predictionClass / 10.0
+            val paddedCorrelation = correlation.copyOf(MLP_CC_SIZE)
+            val mlpPredictionClass: Int? = mMLPClassifier.value?.predict(paddedCorrelation)
+            if (mlpPredictionClass == null) {
+                showErrorMessage()
+                return@Runnable
+            }
 
 
             postDataToServer(
                 mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
                 correlation,
                 transmissionCycle,
-                peaksPrediction,
-                mlpPrediction = -1.0
+                peaksPrediction = peaksPrediction,
+                mlpPrediction = mlpPredictionClass / 10.0
             )
 //            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
             submitNextTransmissionCycle()
@@ -300,7 +300,8 @@ class MainActivity : AppCompatActivity() {
 //    }
 
     companion object {
-        // TODO: go ultrasonic when this works (min: 20, max: 22)
+        // This was taken from the 'longest_cc' file at SonarApp_utils. This is the CC that the MLP accepts.
+        const val MLP_CC_SIZE = 4346
         const val MIN_CHIRP_FREQ = 3000.0
         const val MAX_CHIRP_FREQ = MIN_CHIRP_FREQ
         const val CHIRP_DURATION = 0.01
