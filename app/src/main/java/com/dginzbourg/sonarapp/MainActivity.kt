@@ -227,7 +227,8 @@ class MainActivity : AppCompatActivity() {
     private fun submitNextTransmissionCycle() {
         if (++transmissionCycle > (STOP_AFTER ?: Int.MAX_VALUE)) {
             mRealDistance += 0.1f
-            mRealDistanceEditText.setText("$mRealDistance")
+            val s = "%.1f".format(mRealDistance)
+            mRealDistanceEditText.setText(s)
             return
         }
 
