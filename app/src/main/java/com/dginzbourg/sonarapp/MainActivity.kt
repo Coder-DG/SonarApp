@@ -102,6 +102,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.startRecrodingButton).setOnClickListener {
             mSuccessfulTransmits = 0
             transmissionCycle = 0
+            val s = "${mSuccessfulTransmits}/$STOP_AFTER"
+            mSuccessfulTransmitsTextView.text = s
+
             val realDistanceString = mRealDistanceEditText.text.toString()
             if (realDistanceString.isEmpty()) return@setOnClickListener
             try {
@@ -118,6 +121,8 @@ class MainActivity : AppCompatActivity() {
 
         }
         mSuccessfulTransmitsTextView = findViewById(R.id.successfulTransmits)
+        val s = "0/$STOP_AFTER"
+        mSuccessfulTransmitsTextView.text = s
 
         initMLPClassifier()
         Log.d(LOG_TAG, "App started")
@@ -171,9 +176,9 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         requestQueue.cancelAll { true }
         executor.shutdownNow()
-        mTransmitter.mAudioPlayer.stop()
+        mTransmitter.stop()
         mTransmitter.mAudioPlayer.release()
-        mListener.mAudioRecorder.stop()
+        mListener.stop()
         mListener.mAudioRecorder.release()
         super.onPause()
     }

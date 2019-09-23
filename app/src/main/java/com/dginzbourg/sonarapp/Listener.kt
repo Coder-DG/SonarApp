@@ -36,4 +36,9 @@ class Listener {
             // TODO: let the user know
         }
     }
+
+    fun stop() {
+        if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) return
+        mAudioRecorder.stop()
+    }
 }
