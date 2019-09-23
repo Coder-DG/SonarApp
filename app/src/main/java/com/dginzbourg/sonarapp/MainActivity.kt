@@ -4,7 +4,6 @@ import android.Manifest
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
@@ -21,15 +20,12 @@ import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
 import org.json.JSONObject
 import java.io.InputStreamReader
 import java.util.concurrent.Executors
-import kotlin.collections.ArrayList
 import kotlin.math.*
 
 // TODO: Performance enhancements
@@ -45,6 +41,9 @@ class MainActivity : AppCompatActivity() {
     private var mRealDistance = REAL_DISTANCE
     private var mLocation = LOCATION
     private var mMLPClassifier = MutableLiveData<MLPClassifier>()
+    private lateinit var mRealDistanceEditText: EditText
+    private var mSuccessfulTransmits = 0
+    private lateinit var mSuccessfulTransmitsTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +60,6 @@ class MainActivity : AppCompatActivity() {
         requestQueue = Volley.newRequestQueue(this)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
         mTempCalculator = TemperatureCalculator(this)
-//        setAmpChartGraphSettings(sonarAmplitudeChart)
         mSONARAmplitude.observe(this, Observer<LineData> {
             if (it == null)
                 return@Observer
@@ -70,9 +68,9 @@ class MainActivity : AppCompatActivity() {
         })
         val locationEditText = findViewById<EditText>(R.id.locationEditText)
         val distanceInInchesTextView = findViewById<TextView>(R.id.distanceInInches)
-        val realDistanceEditText: EditText = findViewById(R.id.distanceEditText)
-        realDistanceEditText.setText(mRealDistance.toString())
-        realDistanceEditText.addTextChangedListener(object : TextWatcher {
+        mRealDistanceEditText = findViewById(R.id.distanceEditText)
+        mRealDistanceEditText.setText(mRealDistance.toString())
+        mRealDistanceEditText.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
             }
 
@@ -102,8 +100,9 @@ class MainActivity : AppCompatActivity() {
             }
         })
         findViewById<Button>(R.id.startRecrodingButton).setOnClickListener {
+            mSuccessfulTransmits = 0
             transmissionCycle = 0
-            val realDistanceString = realDistanceEditText.text.toString()
+            val realDistanceString = mRealDistanceEditText.text.toString()
             if (realDistanceString.isEmpty()) return@setOnClickListener
             try {
                 mRealDistance = realDistanceString.toFloat()
@@ -118,6 +117,8 @@ class MainActivity : AppCompatActivity() {
             )
 
         }
+        mSuccessfulTransmitsTextView = findViewById(R.id.successfulTransmits)
+
         initMLPClassifier()
         Log.d(LOG_TAG, "App started")
     }
@@ -177,17 +178,6 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
     }
 
-    private fun postDataToGraph(data: DoubleArray) {
-        val entries = ArrayList<Entry>()
-        data.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
-        val dataSet = LineDataSet(entries, "SONAR Amplitude")
-        dataSet.color = Color.BLACK
-        dataSet.lineWidth = 1f
-        dataSet.valueTextSize = 0.5f
-        dataSet.setDrawCircles(false)
-        mSONARAmplitude.postValue(LineData(dataSet))
-    }
-
     private fun postDataToServer(
         recording: DoubleArray,
         cc: DoubleArray,
@@ -209,6 +199,11 @@ class MainActivity : AppCompatActivity() {
             JSONObject(jsonRequestBody),
             Response.Listener<JSONObject> {
                 Log.d(LOG_TAG, "Server replied with $it for cycle $cycle")
+                mSuccessfulTransmits++
+                runOnUiThread {
+                    val s = "${mSuccessfulTransmits}/$STOP_AFTER"
+                    mSuccessfulTransmitsTextView.setText(s)
+                }
             },
             Response.ErrorListener {
                 Log.e(LOG_TAG, "Error sending data to server: $it for cycle $cycle")
@@ -226,6 +221,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun submitNextTransmissionCycle() {
         if (++transmissionCycle > (STOP_AFTER ?: Int.MAX_VALUE)) {
+            mRealDistance += 0.1f
+            mRealDistanceEditText.setText("$mRealDistance")
             return
         }
 
@@ -272,7 +269,6 @@ class MainActivity : AppCompatActivity() {
                 peaksPrediction = peaksPrediction,
                 mlpPrediction = mlpPredictionClass / 10.0
             )
-//            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
             submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
@@ -281,23 +277,6 @@ class MainActivity : AppCompatActivity() {
     private fun showErrorMessage() {
         // "Please restart the app" or something.
     }
-//
-//    private fun getNeuralNetworkPrediction(correlation: DoubleArray): Double {
-//        val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.json")))
-//        val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.json")))
-//        val json = Gson()
-//        val weights = json.fromJson<Array<Array<DoubleArray>>>(
-//            weightsReader,
-//            Array<Array<DoubleArray>>::class.java
-//        )
-//        val bias = json.fromJson<Array<DoubleArray>>(
-//            biasReader,
-//            Array<DoubleArray>::class.java
-//        )
-//
-//        val prediction = MLPClassifier.classify(correlation, weights, bias)
-//        return MLPClassifier.getDistance(prediction)
-//    }
 
     companion object {
         // This was taken from the 'longest_cc' file at SonarApp_utils. This is the CC that the MLP accepts.
