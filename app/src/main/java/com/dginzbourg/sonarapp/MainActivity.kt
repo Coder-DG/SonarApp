@@ -241,7 +241,7 @@ class MainActivity : AppCompatActivity() {
             mTransmitter.transmit()
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
-            mTransmitter.mAudioPlayer.stop()
+            mTransmitter.stop()
             val correlation = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
