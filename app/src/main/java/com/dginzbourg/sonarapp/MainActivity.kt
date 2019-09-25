@@ -10,47 +10,26 @@ import android.os.Process
 import android.speech.tts.TextToSpeech
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.Log
-import android.widget.Button
-import android.widget.EditText
 import android.widget.TextView
-import com.android.volley.RequestQueue
-import com.android.volley.Response
-import com.android.volley.toolbox.JsonObjectRequest
-import com.android.volley.toolbox.Volley
-import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.data.LineData
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
-import kotlinx.android.synthetic.main.activity_main.view.*
-import org.json.JSONObject
 import java.io.InputStreamReader
-import java.lang.Thread.sleep
 import java.util.*
 import java.util.concurrent.Executors
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 import kotlin.math.*
 
-// TODO: Performance enhancements
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
-    private var mSONARAmplitude: MutableLiveData<LineData> = MutableLiveData()
-    private var executor = Executors.newCachedThreadPool()
+    private var mExecutor = Executors.newCachedThreadPool()
     private lateinit var mTempCalculator: TemperatureCalculator
     private val mListener = Listener()
     private val mTransmitter = Transmitter()
     private val mDistanceAnalyzer = DistanceAnalyzer()
     private val mNoiseFilter = NoiseFilter()
-    private lateinit var requestQueue: RequestQueue
-    private var mRealDistance = REAL_DISTANCE
-    private var mLocation = LOCATION
     private var mMLPClassifier = MutableLiveData<MLPClassifier>()
-    private var tts: TextToSpeech? = null
-    private lateinit var mRealDistanceEditText: EditText
-    private var mSuccessfulTransmits = 0
-    private lateinit var mSuccessfulTransmitsTextView: TextView
+    private lateinit var mTTS: TextToSpeech
+    private var mDistanceString = MutableLiveData<String>()
+    private lateinit var mDistanceTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,98 +39,38 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
         ) {
+            // TODO: make sure to not load anything if this is not granted
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1234)
         }
 
         setContentView(R.layout.activity_main)
-        requestQueue = Volley.newRequestQueue(this)
-        val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
         mTempCalculator = TemperatureCalculator(this)
-        mSONARAmplitude.observe(this, Observer<LineData> {
-            if (it == null)
-                return@Observer
-            sonarAmplitudeChart.data = it
-            sonarAmplitudeChart.invalidate()
-        })
-        val locationEditText = findViewById<EditText>(R.id.locationEditText)
-        val distanceInInchesTextView = findViewById<TextView>(R.id.distanceInInches)
-        mRealDistanceEditText = findViewById(R.id.distanceEditText)
-        mRealDistanceEditText.setText(mRealDistance.toString())
-        mRealDistanceEditText.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-            }
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-            }
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                try {
-                    mRealDistance = s?.toString()?.toFloat() ?: return
-                } catch (_: NumberFormatException) {
-                    return
-                }
-                val distanceString = "In inches: %.2f".format(mRealDistance * 39.37)
-                distanceInInchesTextView.text = distanceString
-            }
-        })
-        locationEditText.setText(mLocation)
-        locationEditText.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-            }
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-            }
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                mLocation = s?.toString() ?: return
-            }
-        })
-        findViewById<Button>(R.id.startRecrodingButton).setOnClickListener {
-            mSuccessfulTransmits = 0
-            transmissionCycle = 0
-            val s = "${mSuccessfulTransmits}/$STOP_AFTER"
-            mSuccessfulTransmitsTextView.text = s
-
-            val realDistanceString = mRealDistanceEditText.text.toString()
-            if (realDistanceString.isEmpty()) return@setOnClickListener
-            try {
-                mRealDistance = realDistanceString.toFloat()
-            } catch (_: NumberFormatException) {
-                return@setOnClickListener
-            }
-            executor.submit(
-                SonarThread(Runnable {
-                    Thread.sleep(1000)
-                    submitNextTransmissionCycle()
-                })
-            )
-
-        }
-        tts = TextToSpeech(this, this)
-        mSuccessfulTransmitsTextView = findViewById(R.id.successfulTransmits)
-        val s = "0/$STOP_AFTER"
-        mSuccessfulTransmitsTextView.text = s
-
+        mTTS = TextToSpeech(this, this)
+        TTSParams.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, TTS_VOLUME)
         initMLPClassifier()
+        mDistanceTextView = findViewById(R.id.distanceTextView)
+        mDistanceString.observe(this, object : Observer<String> {
+            override fun onChanged(t: String?) {
+                mDistanceTextView.text = t ?: return
+            }
+        })
         Log.d(LOG_TAG, "App started")
     }
 
     override fun onInit(status: Int) {
-
-        if (status == TextToSpeech.SUCCESS) {
-            val result = tts!!.setLanguage(Locale.UK)
-
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.e("TTS","The Language specified is not supported!")
-            }
-        } else {
+        if (status != TextToSpeech.SUCCESS) {
             Log.e("TTS", "Initilization Failed!")
+            return
         }
+        val result = mTTS.setLanguage(Locale.getDefault())
 
+        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+            Log.e("TTS", "The Language specified is not supported!")
+        }
     }
 
     private fun initMLPClassifier() {
-        executor.submit(
+        mExecutor.submit(
             SonarThread(Runnable {
                 Log.d(LOG_TAG, "Loading MLP JSON files...")
                 val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.json")))
@@ -175,79 +94,36 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
 
     override fun onResume() {
-        if (executor.isShutdown) executor = Executors.newCachedThreadPool()
-        requestQueue = Volley.newRequestQueue(this)
+        if (mExecutor.isShutdown) mExecutor = Executors.newCachedThreadPool()
         mTransmitter.init()
         mListener.init()
-        if (!INTERACTIVE) submitNextTransmissionCycle()
+        submitNextTransmissionCycle()
         super.onResume()
     }
 
     override fun onPause() {
-        requestQueue.cancelAll { true }
-        executor.shutdownNow()
+        mExecutor.shutdownNow()
         mTransmitter.stop()
         mTransmitter.mAudioPlayer.release()
         mListener.stop()
         mListener.mAudioRecorder.release()
+        mTTS.stop()
         super.onPause()
     }
 
-    private fun postDataToServer(
-        recording: DoubleArray,
-        cc: DoubleArray,
-        cycle: Int,
-        peaksPrediction: Double,
-        mlpPrediction: Double
-    ) {
-        val jsonRequestBody = HashMap<String, Any>(1)
-        jsonRequestBody["recording"] = recording
-        jsonRequestBody["cc"] = cc
-        jsonRequestBody["location"] = mLocation
-        jsonRequestBody["real_distance"] = "${mRealDistance}m"
-        jsonRequestBody["cycle"] = cycle
-        jsonRequestBody["peaks_prediction"] = peaksPrediction
-        jsonRequestBody["mlp_prediction"] = mlpPrediction
-        jsonRequestBody["extra_info"] = EXTRA_INFO
-        val request = object : JsonObjectRequest(
-            SERVER_URL,
-            JSONObject(jsonRequestBody),
-            Response.Listener<JSONObject> {
-                Log.d(LOG_TAG, "Server replied with $it for cycle $cycle")
-                mSuccessfulTransmits++
-                runOnUiThread {
-                    val s = "${mSuccessfulTransmits}/$STOP_AFTER"
-                    mSuccessfulTransmitsTextView.setText(s)
-                }
-            },
-            Response.ErrorListener {
-                Log.e(LOG_TAG, "Error sending data to server: $it for cycle $cycle")
-            }
-        ) {
-            override fun getHeaders(): MutableMap<String, String> {
-                return HashMap<String, String>(1).also {
-                    it[REQUESTS_CONTENT_TYPE_HEADER] = REQUESTS_CONTENT_TYPE_JSON
-                }
-            }
-        }
-
-        requestQueue.add(request)
+    override fun onDestroy() {
+        mTTS.shutdown()
+        super.onDestroy()
     }
 
     private fun submitNextTransmissionCycle() {
-        if (++transmissionCycle > (STOP_AFTER ?: Int.MAX_VALUE)) {
-            mRealDistance += 0.1f
-            val s = "%.1f".format(mRealDistance)
-            mRealDistanceEditText.setText(s)
-            return
-        }
-
+        transmissionCycle++
         val transmissionCycle = SonarThread(Runnable {
-            while (mMLPClassifier.value == null) {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
+            while (mMLPClassifier.value == null || mTTS.isSpeaking) {
                 continue
             }
 
-            Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
             mListener.listen()
@@ -267,13 +143,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             if (peaksPrediction == null) {
                 submitNextTransmissionCycle()
                 return@Runnable
-            } else {
-                if (transmissionCycle % 3 == 0) {
-                    // TODO add as textview text if want to display on screen
-                    val distanceString = "%.2f".format(peaksPrediction)
-                    tts!!.speak(distanceString, TextToSpeech.QUEUE_FLUSH, null, "")
-                    sleep(2000)
-                }
             }
 
             val paddedCorrelation = correlation.copyOf(MLP_CC_SIZE)
@@ -282,22 +151,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 showErrorMessage()
                 return@Runnable
             }
+            val mlpPrediction = mlpPredictionClass / 10.0
 
+            val distanceString = "%.2f".format(0.1 * mlpPrediction + 0.9 * peaksPrediction)
+            mDistanceString.postValue(distanceString)
 
-            postDataToServer(
-                mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
-                correlation,
-                transmissionCycle,
-                peaksPrediction = peaksPrediction,
-                mlpPrediction = mlpPredictionClass / 10.0
-            )
+            if (transmissionCycle % 3 == 0) {
+                mTTS.speak(distanceString, TextToSpeech.QUEUE_FLUSH, TTSParams, "")
+            }
+
             submitNextTransmissionCycle()
         })
-        executor.submit(transmissionCycle)
+        mExecutor.submit(transmissionCycle)
     }
 
     private fun showErrorMessage() {
-        // "Please restart the app" or something.
+        // TODO: "Please restart the app" or something.
     }
 
     companion object {
@@ -312,31 +181,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         const val MAX_PEAK_DIST = 2600
         // half chirp width
         val MIN_PEAK_DIST = (CHIRP_DURATION * SAMPLE_RATE * 0.5).roundToInt()
-        // 0.5sec of recordings. Can't be too little (you'll get an error). Has to be at least WINDOW_SIZE samples
         val RECORDING_SAMPLES = (0.5 * SAMPLE_RATE).roundToInt()
-        //        val RECORDING_SAMPLES = max(
-//            AudioRecord.getMinBufferSize(
-//                SAMPLE_RATE,
-//                AudioFormat.CHANNEL_IN_MONO,
-//                AudioFormat.ENCODING_PCM_16BIT
-//            ) / 2.0,
-//            // Time it takes it to reach 10m (5m forward, 5m back), at 0 degrees celsius
-//            SAMPLE_RATE * 10.0 / DistanceAnalyzer.BASE_SOUND_SPEED
-//        ).roundToInt()
         // Amount of samples to keep after chirp
         val RECORDING_CUT_OFF = (SAMPLE_RATE * (CHIRP_DURATION + 13.0 / DistanceAnalyzer.BASE_SOUND_SPEED)
                 ).roundToInt() * 2
-        /* DEBUG URL CONSTANTS */
-        const val SERVER_URL = "http://YOUR_IP:5000/"
-        const val REQUESTS_CONTENT_TYPE_HEADER = "Content-Type"
-        const val REQUESTS_CONTENT_TYPE_JSON = "application/json"
-        const val LOCATION = "xxx"
-        const val REAL_DISTANCE = 123.123f
-        const val EXTRA_INFO = "Any extra info you'd like to add. It'll be saved with the sample."
-        // When true, it will wait for user to write the distance in the edittext and press the button
-        const val INTERACTIVE = false
-        // write "= null" if you don't want it to stop
-        const val STOP_AFTER = 20
         var transmissionCycle = 0
+        val TTSParams = Bundle()
+        // TODO: make this customizable by the user
+        const val TTS_VOLUME = 0.5f
     }
 }
