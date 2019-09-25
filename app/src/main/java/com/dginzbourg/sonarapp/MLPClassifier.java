@@ -101,7 +101,8 @@ class MLPClassifier {
     }
 
     public static MLPClassifier buildClassifier(double[][][] weights, double[][] bias) {
-        int[] layers = {800, 34};
+        // Updated from the MLPClassifier.java file outputted by analysis.py (SonarApp_utils)
+        int[] layers = {500, 41};
         return new MLPClassifier("relu", "softmax", layers, weights, bias);
     }
 }

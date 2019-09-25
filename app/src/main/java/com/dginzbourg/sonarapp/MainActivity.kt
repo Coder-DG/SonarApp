@@ -4,7 +4,6 @@ import android.Manifest
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
@@ -22,9 +21,7 @@ import com.android.volley.Response
 import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
 import kotlinx.android.synthetic.main.activity_main.view.*
@@ -51,6 +48,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var mLocation = LOCATION
     private var mMLPClassifier = MutableLiveData<MLPClassifier>()
     private var tts: TextToSpeech? = null
+    private lateinit var mRealDistanceEditText: EditText
+    private var mSuccessfulTransmits = 0
+    private lateinit var mSuccessfulTransmitsTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,7 +67,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         requestQueue = Volley.newRequestQueue(this)
         val sonarAmplitudeChart = findViewById<LineChart>(R.id.amp_chart)
         mTempCalculator = TemperatureCalculator(this)
-//        setAmpChartGraphSettings(sonarAmplitudeChart)
         mSONARAmplitude.observe(this, Observer<LineData> {
             if (it == null)
                 return@Observer
@@ -76,9 +75,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         })
         val locationEditText = findViewById<EditText>(R.id.locationEditText)
         val distanceInInchesTextView = findViewById<TextView>(R.id.distanceInInches)
-        val realDistanceEditText: EditText = findViewById(R.id.distanceEditText)
-        realDistanceEditText.setText(mRealDistance.toString())
-        realDistanceEditText.addTextChangedListener(object : TextWatcher {
+        mRealDistanceEditText = findViewById(R.id.distanceEditText)
+        mRealDistanceEditText.setText(mRealDistance.toString())
+        mRealDistanceEditText.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
             }
 
@@ -108,8 +107,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
         })
         findViewById<Button>(R.id.startRecrodingButton).setOnClickListener {
+            mSuccessfulTransmits = 0
             transmissionCycle = 0
-            val realDistanceString = realDistanceEditText.text.toString()
+            val s = "${mSuccessfulTransmits}/$STOP_AFTER"
+            mSuccessfulTransmitsTextView.text = s
+
+            val realDistanceString = mRealDistanceEditText.text.toString()
             if (realDistanceString.isEmpty()) return@setOnClickListener
             try {
                 mRealDistance = realDistanceString.toFloat()
@@ -124,9 +127,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             )
 
         }
-
         tts = TextToSpeech(this, this)
-//        initMLPClassifier()
+        mSuccessfulTransmitsTextView = findViewById(R.id.successfulTransmits)
+        val s = "0/$STOP_AFTER"
+        mSuccessfulTransmitsTextView.text = s
+
+        initMLPClassifier()
         Log.d(LOG_TAG, "App started")
     }
 
@@ -167,18 +173,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         )
     }
 
-    private fun setAmpChartGraphSettings(sonarAmplitudeChart: LineChart) {
-        // This sets the zoom levels so we won't have to zoom in or out
-        val maxValue = 4e10f
-        val minValue = 0f
-        sonarAmplitudeChart.axisLeft.axisMaximum = maxValue
-        sonarAmplitudeChart.axisLeft.axisMinimum = minValue
-        sonarAmplitudeChart.axisRight.axisMaximum = maxValue
-        sonarAmplitudeChart.axisRight.axisMinimum = minValue
-        sonarAmplitudeChart.xAxis.axisMinimum = 0f
-        sonarAmplitudeChart.xAxis.axisMaximum = RECORDING_SAMPLES.toFloat()
-    }
-
 
     override fun onResume() {
         if (executor.isShutdown) executor = Executors.newCachedThreadPool()
@@ -192,22 +186,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onPause() {
         requestQueue.cancelAll { true }
         executor.shutdownNow()
-        mTransmitter.mAudioPlayer.stop()
+        mTransmitter.stop()
         mTransmitter.mAudioPlayer.release()
-        mListener.mAudioRecorder.stop()
+        mListener.stop()
         mListener.mAudioRecorder.release()
         super.onPause()
-    }
-
-    private fun postDataToGraph(data: DoubleArray) {
-        val entries = ArrayList<Entry>()
-        data.forEachIndexed { index, db -> entries.add(Entry(index.toFloat(), db.toFloat())) }
-        val dataSet = LineDataSet(entries, "SONAR Amplitude")
-        dataSet.color = Color.BLACK
-        dataSet.lineWidth = 1f
-        dataSet.valueTextSize = 0.5f
-        dataSet.setDrawCircles(false)
-        mSONARAmplitude.postValue(LineData(dataSet))
     }
 
     private fun postDataToServer(
@@ -231,6 +214,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             JSONObject(jsonRequestBody),
             Response.Listener<JSONObject> {
                 Log.d(LOG_TAG, "Server replied with $it for cycle $cycle")
+                mSuccessfulTransmits++
+                runOnUiThread {
+                    val s = "${mSuccessfulTransmits}/$STOP_AFTER"
+                    mSuccessfulTransmitsTextView.setText(s)
+                }
             },
             Response.ErrorListener {
                 Log.e(LOG_TAG, "Error sending data to server: $it for cycle $cycle")
@@ -248,20 +236,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun submitNextTransmissionCycle() {
         if (++transmissionCycle > (STOP_AFTER ?: Int.MAX_VALUE)) {
+            mRealDistance += 0.1f
+            val s = "%.1f".format(mRealDistance)
+            mRealDistanceEditText.setText(s)
             return
         }
 
         val transmissionCycle = SonarThread(Runnable {
-            //            while (mMLPClassifier.value == null) {
-//                continue
-//            }
+            while (mMLPClassifier.value == null) {
+                continue
+            }
 
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
             mListener.listen()
             Log.d(LOG_TAG, "Stopping transmission...")
-            mTransmitter.mAudioPlayer.stop()
+            mTransmitter.stop()
             val correlation = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
                 pulseBuffer = mTransmitter.mPlayerBuffer
@@ -285,23 +276,21 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
             }
 
-
-//            val predictionClass: Int? = mMLPClassifier.value?.predict(correlation)
-//            if (predictionClass == null) {
-//                showErrorMessage()
-//                return@Runnable
-//            }
-//            val prediction = predictionClass / 10.0
+            val paddedCorrelation = correlation.copyOf(MLP_CC_SIZE)
+            val mlpPredictionClass: Int? = mMLPClassifier.value?.predict(paddedCorrelation)
+            if (mlpPredictionClass == null) {
+                showErrorMessage()
+                return@Runnable
+            }
 
 
             postDataToServer(
                 mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray(),
                 correlation,
                 transmissionCycle,
-                peaksPrediction,
-                mlpPrediction = -1.0
+                peaksPrediction = peaksPrediction,
+                mlpPrediction = mlpPredictionClass / 10.0
             )
-//            postDataToGraph(mListener.mRecorderBuffer.map { it.toDouble() }.toDoubleArray())
             submitNextTransmissionCycle()
         })
         executor.submit(transmissionCycle)
@@ -310,26 +299,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun showErrorMessage() {
         // "Please restart the app" or something.
     }
-//
-//    private fun getNeuralNetworkPrediction(correlation: DoubleArray): Double {
-//        val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.json")))
-//        val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.json")))
-//        val json = Gson()
-//        val weights = json.fromJson<Array<Array<DoubleArray>>>(
-//            weightsReader,
-//            Array<Array<DoubleArray>>::class.java
-//        )
-//        val bias = json.fromJson<Array<DoubleArray>>(
-//            biasReader,
-//            Array<DoubleArray>::class.java
-//        )
-//
-//        val prediction = MLPClassifier.classify(correlation, weights, bias)
-//        return MLPClassifier.getDistance(prediction)
-//    }
 
     companion object {
-        // TODO: go ultrasonic when this works (min: 20, max: 22)
+        // This was taken from the 'longest_cc' file at SonarApp_utils. This is the CC that the MLP accepts.
+        const val MLP_CC_SIZE = 4346
         const val MIN_CHIRP_FREQ = 3000.0
         const val MAX_CHIRP_FREQ = MIN_CHIRP_FREQ
         const val CHIRP_DURATION = 0.01
