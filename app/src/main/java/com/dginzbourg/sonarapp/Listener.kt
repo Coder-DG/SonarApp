@@ -32,8 +32,7 @@ class Listener {
             .build()
         Log.d(MainActivity.LOG_TAG, "Record buffer size is ${MainActivity.RECORDING_SAMPLES}")
         if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
-            Log.e(MainActivity.LOG_TAG, "Unable to init recorder")
-            // TODO: let the user know
+            throw SonarException("The audio recorder was unable to initialize.")
         }
     }
 

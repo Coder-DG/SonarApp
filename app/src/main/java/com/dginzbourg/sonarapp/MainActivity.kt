@@ -8,7 +8,6 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
 import android.speech.tts.TextToSpeech
-import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.widget.TextView
@@ -34,15 +33,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: make sure to not load anything if this is not granted
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1234)
-        }
-
         setContentView(R.layout.activity_main)
         mTempCalculator = TemperatureCalculator(this)
         mTTS = TextToSpeech(this, this)
@@ -57,15 +47,50 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         Log.d(LOG_TAG, "App started")
     }
 
+    private fun validatePermissionsGranted(): Boolean {
+        for (permission in permissionArray) {
+            if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+                continue
+            }
+            Log.d("permissions request", "Requested permission $permission")
+            requestPermissions(permissionArray, 123)
+            return false
+        }
+        return true
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        Log.d("onRequestPermission", "Called")
+        if (grantResults.isEmpty() || grantResults.any { it != PackageManager.PERMISSION_GRANTED }) {
+            getAlertDialog(
+                this,
+                "Please grant the requested permissions",
+                "Grant Permissions",
+                "Grant",
+                "Close App",
+                { dialog, _ ->
+                    validatePermissionsGranted()
+                    dialog.cancel()
+                },
+                { _, _ -> finish() }
+            )?.show()
+        }
+        initAndStartTransmissionCycle()
+    }
+
     override fun onInit(status: Int) {
         if (status != TextToSpeech.SUCCESS) {
             Log.e("TTS", "Initilization Failed!")
             return
         }
-        val result = mTTS.setLanguage(Locale.getDefault())
+        val locale = Locale.getDefault()
+        val result = mTTS.setLanguage(locale)
 
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-            Log.e("TTS", "The Language specified is not supported!")
+            // Shouldn't ever happen
+            val errorMsg = "The specified Locale ($locale) is not supported."
+            Log.e("TTS", errorMsg)
+            showErrorMessage(errorMsg)
         }
     }
 
@@ -73,8 +98,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         mExecutor.submit(
             SonarThread(Runnable {
                 Log.d(LOG_TAG, "Loading MLP JSON files...")
-                val weightsReader = JsonReader(InputStreamReader(resources.assets.open("MLPWeights.json")))
-                val biasReader = JsonReader(InputStreamReader(resources.assets.open("MLPbias.json")))
+                val weightsReader = JsonReader(InputStreamReader(resources.assets.open(MLP_WEIGHTS_FILE)))
+                val biasReader = JsonReader(InputStreamReader(resources.assets.open(MLP_BIAS_FILE)))
                 val json = Gson()
                 val weights = json.fromJson<Array<Array<DoubleArray>>>(
                     weightsReader,
@@ -92,12 +117,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         )
     }
 
+    private fun initAndStartTransmissionCycle() {
+        try {
+            try {
+                mTransmitter.init()
+            } catch (e: UnsupportedOperationException) {
+                showErrorMessage(e.toString())
+            }
+            mListener.init()
+        } catch (e: SonarException) {
+            showErrorMessage(e.toString())
+        }
+        submitNextTransmissionCycle()
+    }
 
     override fun onResume() {
         if (mExecutor.isShutdown) mExecutor = Executors.newCachedThreadPool()
-        mTransmitter.init()
-        mListener.init()
-        submitNextTransmissionCycle()
+        val permissionsGranted = validatePermissionsGranted()
+        if (permissionsGranted) initAndStartTransmissionCycle()
         super.onResume()
     }
 
@@ -147,11 +184,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
             val paddedCorrelation = correlation.copyOf(MLP_CC_SIZE)
             val mlpPredictionClass: Int? = mMLPClassifier.value?.predict(paddedCorrelation)
-            if (mlpPredictionClass == null) {
-                showErrorMessage()
-                return@Runnable
+            val mlpPrediction = if (mlpPredictionClass != null) {
+                mlpPredictionClass / 10.0
+            } else {
+                peaksPrediction
             }
-            val mlpPrediction = mlpPredictionClass / 10.0
 
             val distanceString = "%.2f".format(0.1 * mlpPrediction + 0.9 * peaksPrediction)
             mDistanceString.postValue(distanceString)
@@ -165,11 +202,21 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         mExecutor.submit(transmissionCycle)
     }
 
-    private fun showErrorMessage() {
-        // TODO: "Please restart the app" or something.
+    private fun showErrorMessage(errorMsg: String) {
+        getAlertDialog(
+            this,
+            errorMsg,
+            "Error",
+            "Close App",
+            null,
+            { _, _ -> finish() }
+        )?.show()
     }
 
     companion object {
+        val permissionArray = arrayOf(
+            Manifest.permission.RECORD_AUDIO
+        )
         // This was taken from the 'longest_cc' file at SonarApp_utils. This is the CC that the MLP accepts.
         const val MLP_CC_SIZE = 4346
         const val MIN_CHIRP_FREQ = 3000.0
@@ -189,5 +236,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val TTSParams = Bundle()
         // TODO: make this customizable by the user
         const val TTS_VOLUME = 0.5f
+        const val MLP_WEIGHTS_FILE = "MLPWeights.json"
+        const val MLP_BIAS_FILE = "MLPbias.json"
     }
 }

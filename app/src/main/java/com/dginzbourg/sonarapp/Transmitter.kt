@@ -13,9 +13,6 @@ class Transmitter {
     }
 
     lateinit var mAudioPlayer: AudioTrack
-    // t1 < 1 second
-    //var mPlayerBuffer = ShortArray(MainActivity.SAMPLE_RATE)
-    // TODO: add naming to constants
     lateinit var mPlayerBuffer: ShortArray
 
     fun transmit() {
@@ -45,7 +42,9 @@ class Transmitter {
             .setBufferSizeInBytes(PLAYER_BUFFER_SIZE * 2) // This is in bytes and we use Short
             .build()
 
-        // TODO: check that the audio player has been initialized properly, else notify the user
+        if (mAudioPlayer.state != AudioTrack.STATE_INITIALIZED) {
+            throw SonarException("The audio player was unable to initialize.")
+        }
 
         mPlayerBuffer =
             chirp(
