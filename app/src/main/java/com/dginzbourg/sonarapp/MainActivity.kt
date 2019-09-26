@@ -54,7 +54,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 getString(R.string.help_dialog_msg),
                 getString(R.string.help_dialog_title),
                 getString(R.string.help_dialog_pos_btn_txt),
-                { dialog, _ -> dialog.cancel() }
+                { dialog, _ ->
+                    dialog.cancel()
+                    checkVolume()
+                }
             )?.show()
         }
         Log.d(LOG_TAG, "App started")
