@@ -263,7 +263,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             mDistanceString.postValue(distanceString)
 
             if (transmissionCycle % 3 == 0) {
-                mTTS.speak(distanceString, TextToSpeech.QUEUE_FLUSH, mTTSParams, "")
+                val ttsText = "$distanceString ${getString(R.string.meters)}"
+                mTTS.speak(ttsText, TextToSpeech.QUEUE_FLUSH, mTTSParams, "")
             }
 
             submitNextTransmissionCycle()

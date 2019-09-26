@@ -13,4 +13,6 @@
     <string name="error_dialog_title">Error</string>
     <string name="error_dialog_pos_btn_txt">Close App</string>
     <string name="tts_volume_seekbar_title">Text to speech volume</string>
+    <string name="meters">meters</string>
+    <string name="distance_title">The path is clear for</string>
 </resources>
