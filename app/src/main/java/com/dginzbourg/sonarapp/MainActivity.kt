@@ -190,7 +190,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 peaksPrediction
             }
 
-            val distanceString = "%.2f".format(0.1 * mlpPrediction + 0.9 * peaksPrediction)
+            val distanceString = "%.1f".format(0.1 * mlpPrediction + 0.9 * peaksPrediction)
             mDistanceString.postValue(distanceString)
 
             if (transmissionCycle % 3 == 0) {

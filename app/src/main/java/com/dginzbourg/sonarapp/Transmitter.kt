@@ -42,7 +42,7 @@ class Transmitter {
             .setBufferSizeInBytes(PLAYER_BUFFER_SIZE * 2) // This is in bytes and we use Short
             .build()
 
-        if (mAudioPlayer.state != AudioTrack.STATE_INITIALIZED) {
+        if (mAudioPlayer.playState != AudioTrack.STATE_INITIALIZED) {
             throw SonarException("The audio player was unable to initialize.")
         }
 
