@@ -51,13 +51,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         findViewById<View>(R.id.fab).setOnClickListener { _ ->
             getAlertDialog(
                 this,
-                getString(R.string.help_msg),
-                "Help",
-                "Dismiss",
+                getString(R.string.help_dialog_msg),
+                getString(R.string.help_dialog_title),
+                getString(R.string.help_dialog_pos_btn_txt),
                 { dialog, _ -> dialog.cancel() }
             )?.show()
         }
-        checkVolume()
         Log.d(LOG_TAG, "App started")
     }
 
@@ -69,8 +68,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         Snackbar.make(
             findViewById(R.id.mainCoordinatorLayout),
-            R.string.increase_volume,
-            Snackbar.LENGTH_SHORT
+            R.string.increase_volume_snackbar_txt,
+            Snackbar.LENGTH_LONG
         ).show()
     }
 
@@ -91,14 +90,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         if (grantResults.isEmpty() || grantResults.any { it != PackageManager.PERMISSION_GRANTED }) {
             getAlertDialog(
                 this,
-                "Please grant the requested permissions",
-                "Grant Permissions",
-                "Grant",
+                getString(R.string.permissions_dialog_msg),
+                getString(R.string.permissions_dialog_title),
+                getString(R.string.permissions_dialog_pos_btn_txt),
                 { dialog, _ ->
                     validatePermissionsGranted()
                     dialog.cancel()
                 },
-                "Close App",
+                getString(R.string.permissions_dialog_neg_btn_txt),
                 { _, _ -> finish() }
             )?.show()
         }
@@ -162,6 +161,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         if (mExecutor.isShutdown) mExecutor = Executors.newCachedThreadPool()
         val permissionsGranted = validatePermissionsGranted()
         if (permissionsGranted) initAndStartTransmissionCycle()
+        checkVolume()
         super.onResume()
     }
 
@@ -233,8 +233,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         getAlertDialog(
             this,
             errorMsg,
-            "Error",
-            "Close App",
+            getString(R.string.error_dialog_title),
+            getString(R.string.error_dialog_pos_btn_txt),
             { _, _ -> finish() }
         )?.show()
     }
