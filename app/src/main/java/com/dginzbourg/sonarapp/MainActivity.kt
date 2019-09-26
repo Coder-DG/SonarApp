@@ -20,6 +20,7 @@ import java.util.concurrent.Executors
 import kotlin.math.*
 import android.media.AudioManager
 import android.support.design.widget.Snackbar
+import android.widget.SeekBar
 
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
@@ -33,6 +34,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var mTTS: TextToSpeech
     private var mDistanceString = MutableLiveData<String>()
     private lateinit var mDistanceTextView: TextView
+    private var mTTSInitialized = false
+    private val mTTSParams = Bundle()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +43,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setContentView(R.layout.activity_main)
         mTempCalculator = TemperatureCalculator(this)
         mTTS = TextToSpeech(this, this)
-        TTSParams.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, TTS_VOLUME)
+        setTTSVolume(TTS_INITIAL_VOLUME)
         initMLPClassifier()
         mDistanceTextView = findViewById(R.id.distanceTextView)
         mDistanceString.observe(this, object : Observer<String> {
@@ -60,7 +63,32 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
             )?.show()
         }
+        val ttsVolumeSeekBarTitle = findViewById<TextView>(R.id.ttsVolumeSeekBarTitle)
+        val ttsVolumeSeekBar = findViewById<SeekBar>(R.id.ttsVolumeSeekBar)
+        ttsVolumeSeekBar.max = 100
+        ttsVolumeSeekBar.progress = (TTS_INITIAL_VOLUME * ttsVolumeSeekBar.max).roundToInt()
+        ttsVolumeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+            }
+
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser || seekBar == null) return
+
+                val ttsVolume = progress.toFloat() / seekBar.max
+                val text = getString(R.string.tts_volume_seekbar_title) + "($progress%)"
+                ttsVolumeSeekBarTitle.text = text
+                setTTSVolume(ttsVolume)
+            }
+
+        })
         Log.d(LOG_TAG, "App started")
+    }
+
+    private fun setTTSVolume(volume: Float) {
+        mTTSParams.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume)
     }
 
     private fun checkVolume() {
@@ -120,7 +148,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             val errorMsg = "The specified Locale ($locale) is not supported."
             Log.e("TTS", errorMsg)
             showErrorMessage(errorMsg)
+            return
         }
+
+        mTTSInitialized = true
     }
 
     private fun initMLPClassifier() {
@@ -183,11 +214,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onDestroy()
     }
 
+    private fun isTTSReady() = mTTSInitialized && !mTTS.isSpeaking
+
     private fun submitNextTransmissionCycle() {
         transmissionCycle++
         val transmissionCycle = SonarThread(Runnable {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-            while (mMLPClassifier.value == null || mTTS.isSpeaking) {
+            while (mMLPClassifier.value == null || !isTTSReady()) {
                 continue
             }
 
@@ -224,7 +257,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             mDistanceString.postValue(distanceString)
 
             if (transmissionCycle % 3 == 0) {
-                mTTS.speak(distanceString, TextToSpeech.QUEUE_FLUSH, TTSParams, "")
+                mTTS.speak(distanceString, TextToSpeech.QUEUE_FLUSH, mTTSParams, "")
             }
 
             submitNextTransmissionCycle()
@@ -262,9 +295,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val RECORDING_CUT_OFF = (SAMPLE_RATE * (CHIRP_DURATION + 13.0 / DistanceAnalyzer.BASE_SOUND_SPEED)
                 ).roundToInt() * 2
         var transmissionCycle = 0
-        val TTSParams = Bundle()
-        // TODO: make this customizable by the user
-        const val TTS_VOLUME = 0.5f
+        const val TTS_INITIAL_VOLUME = 0.5f
         const val MLP_WEIGHTS_FILE = "MLPWeights.json"
         const val MLP_BIAS_FILE = "MLPbias.json"
     }

@@ -12,5 +12,5 @@
     <string name="permissions_dialog_neg_btn_txt">Close App</string>
     <string name="error_dialog_title">Error</string>
     <string name="error_dialog_pos_btn_txt">Close App</string>
-    <string name="seekbar_title">Text to speech volume</string>
+    <string name="tts_volume_seekbar_title">Text to speech volume</string>
 </resources>
