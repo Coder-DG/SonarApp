@@ -9,8 +9,8 @@ fun getAlertDialog(
     message: String,
     title: String,
     posButtonText: String,
-    negButtonText: String? = null,
     posFunction: (dialog: DialogInterface, id: Int) -> Unit,
+    negButtonText: String? = null,
     negFunction: (dialog: DialogInterface, id: Int) -> Unit = { _, _ -> }
 ): AlertDialog? {
     val builder: AlertDialog.Builder = AlertDialog.Builder(activity)

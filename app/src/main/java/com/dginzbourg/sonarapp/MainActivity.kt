@@ -10,6 +10,7 @@ import android.os.Process
 import android.speech.tts.TextToSpeech
 import android.support.v4.content.ContextCompat
 import android.util.Log
+import android.view.View
 import android.widget.TextView
 import com.google.gson.Gson
 import com.google.gson.stream.JsonReader
@@ -17,6 +18,9 @@ import java.io.InputStreamReader
 import java.util.*
 import java.util.concurrent.Executors
 import kotlin.math.*
+import android.media.AudioManager
+import android.support.design.widget.Snackbar
+
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var mExecutor = Executors.newCachedThreadPool()
@@ -44,7 +48,30 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 mDistanceTextView.text = t ?: return
             }
         })
+        findViewById<View>(R.id.fab).setOnClickListener { _ ->
+            getAlertDialog(
+                this,
+                getString(R.string.help_msg),
+                "Help",
+                "Dismiss",
+                { dialog, _ -> dialog.cancel() }
+            )?.show()
+        }
+        checkVolume()
         Log.d(LOG_TAG, "App started")
+    }
+
+    private fun checkVolume() {
+        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        val musicVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val musicMaxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        if (musicVolume == musicMaxVolume) return
+
+        Snackbar.make(
+            findViewById(R.id.mainCoordinatorLayout),
+            R.string.increase_volume,
+            Snackbar.LENGTH_SHORT
+        ).show()
     }
 
     private fun validatePermissionsGranted(): Boolean {
@@ -67,11 +94,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 "Please grant the requested permissions",
                 "Grant Permissions",
                 "Grant",
-                "Close App",
                 { dialog, _ ->
                     validatePermissionsGranted()
                     dialog.cancel()
                 },
+                "Close App",
                 { _, _ -> finish() }
             )?.show()
         }
@@ -208,7 +235,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             errorMsg,
             "Error",
             "Close App",
-            null,
             { _, _ -> finish() }
         )?.show()
     }

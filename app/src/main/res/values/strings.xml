@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">SonarApp</string>
-    <string name="loading">Loading...</string>
+    <string name="loading">Loading…</string>
+    <string name="help">Displays help dialog</string>
+    <string name="help_msg">Point your loudspeaker towards the front and make sure to have your Music volume all the
+        way up.</string>
+    <string name="increase_volume">Music volume is too low, increase the volume to the max volume</string>
 </resources>
