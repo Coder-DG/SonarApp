@@ -39,29 +39,30 @@
         android:layout_marginTop="32dp"
         android:text="@string/tts_volume_seekbar_title"
         app:layout_constraintEnd_toEndOf="parent"
+        android:gravity="center"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView" />
+        app:layout_constraintTop_toBottomOf="@+id/metersTextView" />
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/metersTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/meters"
+        android:gravity="center"
         app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout"
         app:layout_constraintTop_toBottomOf="@+id/distanceTextView" />
 
     <TextView
-        android:id="@+id/textView2"
+        android:id="@+id/distanceTitleTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
         android:text="@string/distance_title"
+        android:gravity="center"
         app:layout_constraintBottom_toTopOf="@+id/distanceTextView"
         app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout" />
 
     <android.support.design.widget.CoordinatorLayout
