@@ -12,12 +12,14 @@
         android:id="@+id/distanceTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
         android:text="@string/loading"
         android:textSize="60sp"
+        android:gravity="center"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <SeekBar
@@ -34,12 +36,34 @@
         android:id="@+id/ttsVolumeSeekBarTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="32dp"
         android:text="@string/tts_volume_seekbar_title"
         app:layout_constraintEnd_toEndOf="parent"
+        android:gravity="center"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/metersTextView" />
+
+    <TextView
+        android:id="@+id/metersTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/meters"
+        android:gravity="center"
+        app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
+        app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout"
+        app:layout_constraintTop_toBottomOf="@+id/distanceTextView" />
+
+    <TextView
+        android:id="@+id/distanceTitleTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="@string/distance_title"
+        android:gravity="center"
+        app:layout_constraintBottom_toTopOf="@+id/distanceTextView"
+        app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
+        app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout" />
 
     <android.support.design.widget.CoordinatorLayout
         android:id="@+id/mainCoordinatorLayout"
@@ -52,7 +76,7 @@
             android:id="@+id/fab"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="end|bottom"
+            android:layout_gravity="end|top"
             android:layout_margin="16dp"
             android:layout_marginEnd="8dp"
             android:layout_marginBottom="8dp"
