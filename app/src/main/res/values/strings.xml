@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">SonarApp</string>
+    <string name="loading">Loading…</string>
+    <string name="help">Displays help dialog</string>
+    <string name="help_dialog_title">Help message</string>
+    <string name="help_dialog_msg">Point your loudspeaker towards the front and make sure to have your Music volume all the way up.</string>
+    <string name="help_dialog_pos_btn_txt">Dismiss</string>
+    <string name="increase_volume_snackbar_txt">Music volume is too low, increase the volume to the max volume</string>
+    <string name="permissions_dialog_msg">Please grant the requested permissions</string>
+    <string name="permissions_dialog_title">Grant Permissions</string>
+    <string name="permissions_dialog_pos_btn_txt">Grant</string>
+    <string name="permissions_dialog_neg_btn_txt">Close App</string>
+    <string name="error_dialog_title">Error</string>
+    <string name="error_dialog_pos_btn_txt">Close App</string>
+    <string name="tts_volume_seekbar_title">Text to speech volume</string>
+</resources>
