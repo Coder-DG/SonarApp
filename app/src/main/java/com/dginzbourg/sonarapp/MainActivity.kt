@@ -78,18 +78,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 if (!fromUser || seekBar == null) return
 
                 val ttsVolume = progress.toFloat() / seekBar.max
-                val text = getString(R.string.tts_volume_seekbar_title) + "($progress%)"
-                ttsVolumeSeekBarTitle.text = text
+                val textHolder = getString(R.string.tts_volume_seekbar_title) + " ($progress%)"
+                ttsVolumeSeekBarTitle.text = textHolder
                 setTTSVolume(ttsVolume)
             }
 
         })
+        val progress = (getTTSVolume() * ttsVolumeSeekBar.max).roundToInt()
+        val text = getString(R.string.tts_volume_seekbar_title) + " ($progress%)"
+        ttsVolumeSeekBarTitle.text = text
+
         Log.d(LOG_TAG, "App started")
     }
 
     private fun setTTSVolume(volume: Float) {
         mTTSParams.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume)
     }
+
+    private fun getTTSVolume() = mTTSParams.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, -1f)
 
     private fun checkVolume() {
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
