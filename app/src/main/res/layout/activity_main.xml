@@ -19,10 +19,33 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <SeekBar
+        android:id="@+id/seekBar2"
+        android:layout_width="202dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout"
+        app:layout_constraintTop_toBottomOf="@+id/textView" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/seekbar_title"
+        app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout"
+        app:layout_constraintTop_toBottomOf="@+id/distanceTextView" />
+
     <android.support.design.widget.CoordinatorLayout
         android:id="@+id/mainCoordinatorLayout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        tools:layout_editor_absoluteX="0dp"
+        tools:layout_editor_absoluteY="64dp">
 
         <android.support.design.widget.FloatingActionButton
             android:id="@+id/fab"
@@ -37,5 +60,6 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:srcCompat="@android:drawable/ic_menu_help" />
+
     </android.support.design.widget.CoordinatorLayout>
 </android.support.constraint.ConstraintLayout>
