@@ -79,8 +79,13 @@ class Transmitter {
             (1.0 - cos(2.0 * PI * index.toDouble() / PLAYER_BUFFER_SIZE))
 
     fun stop() {
-        if (mAudioPlayer.state != AudioTrack.STATE_INITIALIZED) return
+        if (!::mAudioPlayer.isInitialized || mAudioPlayer.state != AudioTrack.STATE_INITIALIZED) return
         mAudioPlayer.stop()
+    }
+
+    fun release() {
+        if (!::mAudioPlayer.isInitialized) return
+        mAudioPlayer.release()
     }
 
 }

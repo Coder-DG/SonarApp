@@ -1,14 +1,15 @@
 package com.dginzbourg.sonarapp
 
 import android.Manifest
+import android.app.AlertDialog
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
 import android.speech.tts.TextToSpeech
-import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -19,6 +20,8 @@ import java.util.*
 import java.util.concurrent.Executors
 import kotlin.math.*
 import android.media.AudioManager
+import android.net.Uri
+import android.provider.Settings
 import android.support.design.widget.Snackbar
 import android.widget.SeekBar
 
@@ -36,6 +39,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var mDistanceTextView: TextView
     private var mTTSInitialized = false
     private val mTTSParams = Bundle()
+    private var mPermissionsDialog: AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -113,10 +117,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun validatePermissionsGranted(): Boolean {
+        Log.d("validatePermissionsGran", "Called")
         for (permission in permissionArray) {
-            if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
-                continue
-            }
+            if (this.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED) continue
+
             Log.d("permissions request", "Requested permission $permission")
             requestPermissions(permissionArray, 123)
             return false
@@ -127,18 +131,27 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         Log.d("onRequestPermission", "Called")
         if (grantResults.isEmpty() || grantResults.any { it != PackageManager.PERMISSION_GRANTED }) {
-            getAlertDialog(
+            if (mPermissionsDialog?.isShowing == true) return
+
+            Log.d("onRequestPermission", "Displaying permissions dialog")
+            mPermissionsDialog = getAlertDialog(
                 this,
                 getString(R.string.permissions_dialog_msg),
                 getString(R.string.permissions_dialog_title),
                 getString(R.string.permissions_dialog_pos_btn_txt),
                 { dialog, _ ->
-                    validatePermissionsGranted()
                     dialog.cancel()
+                    val intent = Intent()
+                    intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                    val uri = Uri.fromParts("package", this.packageName, null)
+                    intent.data = uri
+                    this.startActivity(intent)
                 },
                 getString(R.string.permissions_dialog_neg_btn_txt),
                 { _, _ -> finish() }
-            )?.show()
+            )
+            mPermissionsDialog?.show()
+            return
         }
         initAndStartTransmissionCycle()
     }
@@ -200,19 +213,25 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onResume() {
+        Log.d("onResume", "Called")
         if (mExecutor.isShutdown) mExecutor = Executors.newCachedThreadPool()
-        val permissionsGranted = validatePermissionsGranted()
-        if (permissionsGranted) initAndStartTransmissionCycle()
-        checkVolume()
+        if (mPermissionsDialog?.isShowing != true) {
+            val permissionsGranted = validatePermissionsGranted()
+            if (permissionsGranted) {
+                initAndStartTransmissionCycle()
+                checkVolume()
+            }
+        }
         super.onResume()
     }
 
     override fun onPause() {
+        Log.d("onPause", "Called")
         mExecutor.shutdownNow()
         mTransmitter.stop()
-        mTransmitter.mAudioPlayer.release()
+        mTransmitter.release()
         mListener.stop()
-        mListener.mAudioRecorder.release()
+        mListener.release()
         mTTS.stop()
         super.onPause()
     }

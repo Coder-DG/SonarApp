@@ -7,7 +7,7 @@
     at the front.</string>
     <string name="help_dialog_pos_btn_txt">Dismiss</string>
     <string name="increase_volume_snackbar_txt">Music volume is too low, increase the volume to the max volume</string>
-    <string name="permissions_dialog_msg">Please grant the requested permissions</string>
+    <string name="permissions_dialog_msg">Please grant the requested permissions, the app cannot work without them.</string>
     <string name="permissions_dialog_title">Grant Permissions</string>
     <string name="permissions_dialog_pos_btn_txt">Grant</string>
     <string name="permissions_dialog_neg_btn_txt">Close App</string>
