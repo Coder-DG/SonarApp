@@ -51,10 +51,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 mDistanceTextView.text = t ?: return
             }
         })
-        findViewById<View>(R.id.fab).setOnClickListener { _ ->
+        findViewById<View>(R.id.fab).setOnClickListener {
+            val helpMsg = getString(R.string.help_dialog_msg)
+            mTTS.speak(helpMsg, TextToSpeech.QUEUE_ADD, mTTSParams, "")
             getAlertDialog(
                 this,
-                getString(R.string.help_dialog_msg),
+                helpMsg,
                 getString(R.string.help_dialog_title),
                 getString(R.string.help_dialog_pos_btn_txt),
                 { dialog, _ ->
@@ -264,7 +266,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
             if (transmissionCycle % 3 == 0) {
                 val ttsText = "$distanceString ${getString(R.string.meters)}"
-                mTTS.speak(ttsText, TextToSpeech.QUEUE_FLUSH, mTTSParams, "")
+                mTTS.speak(ttsText, TextToSpeech.QUEUE_ADD, mTTSParams, "")
             }
 
             submitNextTransmissionCycle()

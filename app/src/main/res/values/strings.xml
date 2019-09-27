@@ -3,7 +3,8 @@
     <string name="loading">Loading…</string>
     <string name="help">Displays help dialog</string>
     <string name="help_dialog_title">Help message</string>
-    <string name="help_dialog_msg">Point your loudspeaker towards the front and make sure to have your Music volume all the way up.</string>
+    <string name="help_dialog_msg">Point your loudspeaker towards the front and make sure to have your Music volume all the way up. Once you do that, the app will read out the distance to the nearest object
+    at the front.</string>
     <string name="help_dialog_pos_btn_txt">Dismiss</string>
     <string name="increase_volume_snackbar_txt">Music volume is too low, increase the volume to the max volume</string>
     <string name="permissions_dialog_msg">Please grant the requested permissions</string>
