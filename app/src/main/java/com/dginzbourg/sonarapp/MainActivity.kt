@@ -28,6 +28,7 @@ import android.support.design.widget.Snackbar
 import android.support.v4.view.GestureDetectorCompat
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.WindowManager
 
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
@@ -51,6 +52,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         loadPreferences()
         mTempCalculator = TemperatureCalculator(this)
         mTTS = TextToSpeech(this, this)
