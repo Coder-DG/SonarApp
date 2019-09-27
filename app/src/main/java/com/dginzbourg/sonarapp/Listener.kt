@@ -11,14 +11,14 @@ class Listener {
 
 
     fun listen() {
-        Log.d(MainActivity.LOG_TAG, "Listening for (${mRecorderBuffer.size} samples)...")
+        Log.d("Listener.listen", "Listening for (${mRecorderBuffer.size} samples)...")
         mAudioRecorder.read(mRecorderBuffer, 0, mRecorderBuffer.size)
-        Log.d(MainActivity.LOG_TAG, "Done listening")
+        Log.d("Listener.listen", "Done listening")
         mAudioRecorder.stop()
     }
 
     fun init() {
-        Log.d(MainActivity.LOG_TAG, "Initializing the Listener...")
+        Log.d("Listener.init", "Initializing the Listener...")
         mAudioRecorder = AudioRecord.Builder()
             .setAudioSource(MediaRecorder.AudioSource.DEFAULT)
             .setAudioFormat(
@@ -30,7 +30,7 @@ class Listener {
             )
             .setBufferSizeInBytes(MainActivity.RECORDING_SAMPLES * 2)
             .build()
-        Log.d(MainActivity.LOG_TAG, "Record buffer size is ${MainActivity.RECORDING_SAMPLES}")
+        Log.d("Listener.init", "Record buffer size is ${MainActivity.RECORDING_SAMPLES}")
         if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
             throw SonarException("The audio recorder was unable to initialize.")
         }

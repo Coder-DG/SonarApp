@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.AlertDialog
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.support.v7.app.AppCompatActivity
@@ -22,8 +23,11 @@ import kotlin.math.*
 import android.media.AudioManager
 import android.net.Uri
 import android.provider.Settings
+import android.support.annotation.StringRes
 import android.support.design.widget.Snackbar
-import android.widget.SeekBar
+import android.support.v4.view.GestureDetectorCompat
+import android.view.GestureDetector
+import android.view.MotionEvent
 
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
@@ -40,14 +44,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var mTTSInitialized = false
     private val mTTSParams = Bundle()
     private var mPermissionsDialog: AlertDialog? = null
+    private lateinit var mDetector: GestureDetectorCompat
+    private lateinit var mTTSVolumeSeekBarTitle: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_main)
+
+        loadPreferences()
         mTempCalculator = TemperatureCalculator(this)
         mTTS = TextToSpeech(this, this)
-        setTTSVolume(TTS_INITIAL_VOLUME)
         initMLPClassifier()
         mDistanceTextView = findViewById(R.id.distanceTextView)
         mDistanceString.observe(this, object : Observer<String> {
@@ -56,57 +62,51 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
         })
         findViewById<View>(R.id.fab).setOnClickListener {
-            val helpMsg = getString(R.string.help_dialog_msg)
-            mTTS.speak(helpMsg, TextToSpeech.QUEUE_ADD, mTTSParams, "")
-            getAlertDialog(
-                this,
-                helpMsg,
-                getString(R.string.help_dialog_title),
-                getString(R.string.help_dialog_pos_btn_txt),
-                { dialog, _ ->
-                    dialog.cancel()
-                    checkVolume()
-                }
-            )?.show()
+            speak(R.string.help_msg, addToQueue = false)
         }
-        val ttsVolumeSeekBarTitle = findViewById<TextView>(R.id.ttsVolumeSeekBarTitle)
-        val ttsVolumeSeekBar = findViewById<SeekBar>(R.id.ttsVolumeSeekBar)
-        ttsVolumeSeekBar.max = 100
-        ttsVolumeSeekBar.progress = (TTS_INITIAL_VOLUME * ttsVolumeSeekBar.max).roundToInt()
-        ttsVolumeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-            }
+        mTTSVolumeSeekBarTitle = findViewById(R.id.ttsVolumeSeekBarTitle)
+        val text = getString(R.string.tts_volume_seekbar_title) + " (${stringPercent(getTTSVolume())}%)"
+        mTTSVolumeSeekBarTitle.text = text
+        mDetector = GestureDetectorCompat(this, MyGestureListener())
 
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-            }
+        Log.d("onCreate", "App started")
+    }
 
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (!fromUser || seekBar == null) return
+    private fun stringPercent(float: Float) = (float * 100).roundToInt()
 
-                val ttsVolume = progress.toFloat() / seekBar.max
-                val textHolder = getString(R.string.tts_volume_seekbar_title) + " ($progress%)"
-                ttsVolumeSeekBarTitle.text = textHolder
-                setTTSVolume(ttsVolume)
-            }
+    private fun speak(@StringRes resId: Int, addToQueue: Boolean = true): Int {
+        return speak(getString(resId), addToQueue)
+    }
 
-        })
-        val progress = (getTTSVolume() * ttsVolumeSeekBar.max).roundToInt()
-        val text = getString(R.string.tts_volume_seekbar_title) + " ($progress%)"
-        ttsVolumeSeekBarTitle.text = text
+    private fun speak(string: String, addToQueue: Boolean = true): Int {
+        val queueMode = if (addToQueue) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH
+        return mTTS.speak(string, queueMode, mTTSParams, "")
+    }
 
-        Log.d(LOG_TAG, "App started")
+    private fun changeTTSVolumeBy(delta: Float) {
+        Log.d("changeTTSVolumeBy", "$delta")
+        val newTTSVolume = getTTSVolume() + delta
+        val ttsVolume = when {
+            delta > 0 -> min(1f, newTTSVolume)
+            else -> max(0f, newTTSVolume)
+        }
+        val textHolder =
+            getString(R.string.tts_volume_seekbar_title) + " (${stringPercent(ttsVolume)}%)"
+        mTTSVolumeSeekBarTitle.text = textHolder
+        setTTSVolume(ttsVolume)
+        speak(textHolder, addToQueue = false)
     }
 
     private fun setTTSVolume(volume: Float) {
         mTTSParams.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume)
     }
 
-    private fun getTTSVolume() = mTTSParams.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, -1f)
+    private fun getTTSVolume() = mTTSParams.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, TTS_INITIAL_VOLUME)
 
     private fun checkVolume() {
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         val musicVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        val musicMaxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        val musicMaxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         if (musicVolume == musicMaxVolume) return
 
         Snackbar.make(
@@ -114,6 +114,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             R.string.increase_volume_snackbar_txt,
             Snackbar.LENGTH_LONG
         ).show()
+        mExecutor.submit(SonarThread(Runnable {
+            while (!mTTSInitialized) continue
+            speak(R.string.increase_volume_snackbar_txt)
+        }))
     }
 
     private fun validatePermissionsGranted(): Boolean {
@@ -134,9 +138,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             if (mPermissionsDialog?.isShowing == true) return
 
             Log.d("onRequestPermission", "Displaying permissions dialog")
+            val dialogMsg = getString(R.string.permissions_dialog_msg)
+            speak(dialogMsg)
             mPermissionsDialog = getAlertDialog(
                 this,
-                getString(R.string.permissions_dialog_msg),
+                dialogMsg,
                 getString(R.string.permissions_dialog_title),
                 getString(R.string.permissions_dialog_pos_btn_txt),
                 { dialog, _ ->
@@ -173,12 +179,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
 
         mTTSInitialized = true
+        speak(R.string.help_msg)
     }
 
     private fun initMLPClassifier() {
         mExecutor.submit(
             SonarThread(Runnable {
-                Log.d(LOG_TAG, "Loading MLP JSON files...")
+                Log.d("initMLPClassifier", "Loading MLP JSON files...")
                 val weightsReader = JsonReader(InputStreamReader(resources.assets.open(MLP_WEIGHTS_FILE)))
                 val biasReader = JsonReader(InputStreamReader(resources.assets.open(MLP_BIAS_FILE)))
                 val json = Gson()
@@ -190,15 +197,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     biasReader,
                     Array<DoubleArray>::class.java
                 )
-                Log.d(LOG_TAG, "Building MLP instance...")
+                Log.d("initMLPClassifier", "Building MLP instance...")
                 val clf = MLPClassifier.buildClassifier(weights, bias)
-                Log.d(LOG_TAG, "Done building MLP instance.")
+                Log.d("initMLPClassifier", "Done building MLP instance.")
                 mMLPClassifier.postValue(clf)
             })
         )
     }
 
     private fun initAndStartTransmissionCycle() {
+        if (mExecutor.isShutdown) mExecutor = Executors.newCachedThreadPool()
         try {
             try {
                 mTransmitter.init()
@@ -214,7 +222,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     override fun onResume() {
         Log.d("onResume", "Called")
-        if (mExecutor.isShutdown) mExecutor = Executors.newCachedThreadPool()
         if (mPermissionsDialog?.isShowing != true) {
             val permissionsGranted = validatePermissionsGranted()
             if (permissionsGranted) {
@@ -227,6 +234,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     override fun onPause() {
         Log.d("onPause", "Called")
+        savePreferences()
         mExecutor.shutdownNow()
         mTransmitter.stop()
         mTransmitter.release()
@@ -241,20 +249,32 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onDestroy()
     }
 
+    private fun savePreferences() {
+        val sharedPref = this.getPreferences(Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putFloat(TTS_VOLUME_PREFERENCES_KEY, getTTSVolume())
+            apply()
+        }
+    }
+
+    private fun loadPreferences() {
+        val sharedPref = this.getPreferences(Context.MODE_PRIVATE)
+        val ttsVolume = sharedPref.getFloat(TTS_VOLUME_PREFERENCES_KEY, TTS_INITIAL_VOLUME)
+        setTTSVolume(ttsVolume)
+    }
+
     private fun isTTSReady() = mTTSInitialized && !mTTS.isSpeaking
 
     private fun submitNextTransmissionCycle() {
         transmissionCycle++
         val transmissionCycle = SonarThread(Runnable {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-            while (mMLPClassifier.value == null || !isTTSReady()) {
-                continue
-            }
+            while (mMLPClassifier.value == null || !isTTSReady()) continue
 
             mListener.mAudioRecorder.startRecording()
             mTransmitter.transmit()
             mListener.listen()
-            Log.d(LOG_TAG, "Stopping transmission...")
+            Log.d("transmissionCycle", "Stopping transmission...")
             mTransmitter.stop()
             val correlation = mNoiseFilter.filterNoise(
                 recordedBuffer = mListener.mRecorderBuffer,
@@ -284,8 +304,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             mDistanceString.postValue(distanceString)
 
             if (transmissionCycle % 3 == 0) {
+                Log.d("transmissionCycle", "Reading out distance of cycle $transmissionCycle")
                 val ttsText = "$distanceString ${getString(R.string.meters)}"
-                mTTS.speak(ttsText, TextToSpeech.QUEUE_ADD, mTTSParams, "")
+                speak(ttsText)
             }
 
             submitNextTransmissionCycle()
@@ -294,6 +315,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun showErrorMessage(errorMsg: String) {
+        speak(R.string.error_tts_msg, addToQueue = false)
         getAlertDialog(
             this,
             errorMsg,
@@ -301,6 +323,27 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             getString(R.string.error_dialog_pos_btn_txt),
             { _, _ -> finish() }
         )?.show()
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        mDetector.onTouchEvent(event)
+        return super.onTouchEvent(event)
+    }
+
+    inner class MyGestureListener : GestureDetector.SimpleOnGestureListener() {
+        override fun onFling(
+            event1: MotionEvent,
+            event2: MotionEvent,
+            velocityX: Float,
+            velocityY: Float
+        ): Boolean {
+            Log.d("onFling", "$event1 $event2")
+            when {
+                velocityX > 0 -> changeTTSVolumeBy(TTS_INCREMENT_DELTA)
+                velocityX < 0 -> changeTTSVolumeBy(TTS_DECREMENT_DELTA)
+            }
+            return true
+        }
     }
 
     companion object {
@@ -313,7 +356,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         const val MAX_CHIRP_FREQ = MIN_CHIRP_FREQ
         const val CHIRP_DURATION = 0.01
         const val SAMPLE_RATE = 44100
-        const val LOG_TAG = "sonar_app"
         // 10 meters
         const val MAX_PEAK_DIST = 2600
         // half chirp width
@@ -326,5 +368,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         const val TTS_INITIAL_VOLUME = 0.5f
         const val MLP_WEIGHTS_FILE = "MLPWeights.json"
         const val MLP_BIAS_FILE = "MLPbias.json"
+        const val TTS_VOLUME_PREFERENCES_KEY = "tts_volume"
+        const val TTS_INCREMENT_DELTA = 0.1f
+        const val TTS_DECREMENT_DELTA = -0.1f
     }
 }

@@ -12,18 +12,18 @@ class Transmitter {
         val PLAYER_BUFFER_SIZE = ceil(MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).toInt()
     }
 
-    lateinit var mAudioPlayer: AudioTrack
+    private lateinit var mAudioPlayer: AudioTrack
     lateinit var mPlayerBuffer: ShortArray
 
     fun transmit() {
-        Log.d(MainActivity.LOG_TAG, "Transmitting ${mPlayerBuffer.size} samples...")
+        Log.d("Transmitter.transmit", "Transmitting ${mPlayerBuffer.size} samples...")
         mAudioPlayer.write(mPlayerBuffer, 0, mPlayerBuffer.size)
         mAudioPlayer.play()
-        Log.d(MainActivity.LOG_TAG, "Sent transmission task.")
+        Log.d("Transmitter.transmit", "Sent transmission task.")
     }
 
     fun init() {
-        Log.d(MainActivity.LOG_TAG, "Initializing the Transmitter...")
+        Log.d("Transmitter.init", "Initializing the Transmitter...")
         mAudioPlayer = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
