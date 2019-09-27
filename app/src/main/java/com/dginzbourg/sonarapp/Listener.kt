@@ -37,7 +37,12 @@ class Listener {
     }
 
     fun stop() {
-        if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) return
+        if (!::mAudioRecorder.isInitialized || mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) return
+        mAudioRecorder.stop()
+    }
+
+    fun release() {
+        if (!::mAudioRecorder.isInitialized) return
         mAudioRecorder.stop()
     }
 }
