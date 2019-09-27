@@ -1,11 +1,10 @@
 <resources>
     <string name="app_name">SonarApp</string>
     <string name="loading">Loading…</string>
-    <string name="help">Displays help dialog</string>
-    <string name="help_dialog_title">Help message</string>
-    <string name="help_dialog_msg">Point your loudspeaker towards the front and make sure to have your Music volume all the way up. Once you do that, the app will read out the distance to the nearest object
-    at the front.</string>
-    <string name="help_dialog_pos_btn_txt">Dismiss</string>
+    <string name="help">Plays the help message</string>
+    <string name="help_msg">Welcome! To increase or decrease the text to speech volume, swipe right or left
+        respectively. Point your loudspeaker towards the front and make sure to have your Music volume all the way up.
+        Once you do that, the app will read out the distance to the nearest object at the front.</string>
     <string name="increase_volume_snackbar_txt">Music volume is too low, increase the volume to the max volume</string>
     <string name="permissions_dialog_msg">Please grant the requested permissions, the app cannot work without them.</string>
     <string name="permissions_dialog_title">Grant Permissions</string>
@@ -16,4 +15,6 @@
     <string name="tts_volume_seekbar_title">Text to speech volume</string>
     <string name="meters">meters</string>
     <string name="distance_title">The path is clear for</string>
+    <string name="error_tts_msg">An error has occurred. Please take a screenshot and report it to the developers.</string>
+    <string name="tts_volume_instructions">Swipe right or left to increase or decrease the volume</string>
 </resources>
