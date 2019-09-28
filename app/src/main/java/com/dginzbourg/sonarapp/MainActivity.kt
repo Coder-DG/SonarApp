@@ -302,12 +302,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 peaksPrediction
             }
 
-            val distanceString = "%.1f".format(0.1 * mlpPrediction + 0.9 * peaksPrediction)
+            val distanceString = if (peaksPrediction > 0) {
+                "%.1f".format(0.1 * mlpPrediction + 0.9 * peaksPrediction)
+            } else {
+                "clear"
+            }
             mDistanceString.postValue(distanceString)
 
             if (transmissionCycle % 3 == 0) {
                 Log.d("transmissionCycle", "Reading out distance of cycle $transmissionCycle")
-                val ttsText = "$distanceString ${getString(R.string.meters)}"
+                val ttsText = if (peaksPrediction > 0) {
+                    "$distanceString ${getString(R.string.meters)}"
+                } else {
+                    distanceString
+                }
                 speak(ttsText)
             }
 
