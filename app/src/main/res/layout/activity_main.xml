@@ -10,30 +10,32 @@
     android:keepScreenOn="true">
 
     <TextView
-        android:id="@+id/distanceTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="8dp"
-        android:gravity="center"
-        android:text="@string/loading"
-        android:textSize="60sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+            android:id="@+id/distanceTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:gravity="center"
+            android:text="@string/loading"
+            android:textSize="76sp"
+            android:textColor="@color/colorBlack"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent" app:layout_constraintVertical_bias="0.455"/>
 
     <TextView
-        android:id="@+id/ttsVolumeInstructionsTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:gravity="center"
-        android:text="@string/tts_volume_instructions"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/ttsVolumeSeekBarTitle" />
+            android:id="@+id/ttsVolumeInstructionsTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:layout_marginEnd="8dp"
+            android:gravity="center"
+            android:text="@string/tts_volume_instructions"
+            android:textSize="20sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/ttsVolumeSeekBarTitle"
+            app:layout_constraintHorizontal_bias="0.0"/>
 
     <TextView
         android:id="@+id/ttsVolumeSeekBarTitle"
@@ -42,6 +44,7 @@
         android:layout_marginTop="32dp"
         android:gravity="center"
         android:text="@string/tts_volume_seekbar_title"
+        android:textSize="24sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
@@ -53,41 +56,43 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:text="@string/meters"
+        android:textSize="16sp"
         app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
         app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout"
         app:layout_constraintTop_toBottomOf="@+id/distanceTextView" />
 
     <TextView
-        android:id="@+id/distanceTitleTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:gravity="center"
-        android:text="@string/distance_title"
-        app:layout_constraintBottom_toTopOf="@+id/distanceTextView"
-        app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
-        app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout" />
-
-    <android.support.design.widget.CoordinatorLayout
-        android:id="@+id/mainCoordinatorLayout"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:layout_editor_absoluteX="0dp"
-        tools:layout_editor_absoluteY="64dp">
-
-        <android.support.design.widget.FloatingActionButton
-            android:id="@+id/fab"
+            android:id="@+id/distanceTitleTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="end|top"
-            android:layout_margin="16dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="8dp"
-            android:backgroundTint="@color/colorPrimary"
-            android:contentDescription="@string/help"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:srcCompat="@android:drawable/ic_menu_help" />
+            android:layout_marginBottom="28dp"
+            android:gravity="center"
+            android:text="@string/distance_title"
+            android:textSize="32sp"
+            app:layout_constraintBottom_toTopOf="@+id/distanceTextView"
+            app:layout_constraintEnd_toStartOf="@+id/mainCoordinatorLayout"
+            app:layout_constraintStart_toEndOf="@+id/mainCoordinatorLayout"/>
+
+    <android.support.design.widget.CoordinatorLayout
+            android:id="@+id/mainCoordinatorLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:layout_editor_absoluteX="0dp"
+            tools:layout_editor_absoluteY="0dp">
+
+        <android.support.design.widget.FloatingActionButton
+                android:id="@+id/fab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|top"
+                android:layout_margin="16dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="@color/colorBlue"
+                android:contentDescription="@string/help"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:srcCompat="@android:drawable/ic_menu_help"/>
 
     </android.support.design.widget.CoordinatorLayout>
 </android.support.constraint.ConstraintLayout>

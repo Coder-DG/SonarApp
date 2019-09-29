@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">SonarApp</string>
+    <string name="app_name" translatable="false">SonarApp</string>
     <string name="loading">Loading…</string>
     <string name="help">Plays the help message</string>
     <string name="help_msg">Welcome! To increase or decrease the text to speech volume, swipe right or left

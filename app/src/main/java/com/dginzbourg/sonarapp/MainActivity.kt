@@ -7,6 +7,7 @@ import android.arch.lifecycle.Observer
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Process
@@ -29,6 +30,8 @@ import android.support.v4.view.GestureDetectorCompat
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.WindowManager
+import android.widget.SeekBar
+import kotlinx.android.synthetic.main.activity_main.*
 
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
@@ -66,12 +69,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         findViewById<View>(R.id.fab).setOnClickListener {
             speak(R.string.help_msg, addToQueue = false)
         }
+
+        setFont()
         mTTSVolumeSeekBarTitle = findViewById(R.id.ttsVolumeSeekBarTitle)
         val text = getString(R.string.tts_volume_seekbar_title) + " (${stringPercent(getTTSVolume())}%)"
         mTTSVolumeSeekBarTitle.text = text
         mDetector = GestureDetectorCompat(this, MyGestureListener())
 
         Log.d("onCreate", "App started")
+    }
+
+    private fun setFont() {
+        val font = Typeface.createFromAsset(assets, "Scada-Regular.ttf")
+        findViewById<TextView>(R.id.distanceTitleTextView).typeface = font
+        findViewById<TextView>(R.id.ttsVolumeSeekBarTitle).typeface = font
+        findViewById<TextView>(R.id.ttsVolumeInstructionsTextView).typeface = font
+        findViewById<TextView>(R.id.metersTextView).typeface = font
     }
 
     private fun stringPercent(float: Float) = (float * 100).roundToInt()
