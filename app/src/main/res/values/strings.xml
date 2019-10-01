@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">SonarApp</string>
+    <string name="app_name" translatable="false">Sonar App</string>
     <string name="loading">Loading…</string>
     <string name="help">Plays the help message</string>
     <string name="help_msg">Welcome! To increase or decrease the text to speech volume, swipe right or left
@@ -17,4 +17,13 @@
     <string name="distance_title">The path is clear for</string>
     <string name="error_tts_msg">An error has occurred. Please take a screenshot and report it to the developers.</string>
     <string name="tts_volume_instructions">Swipe right or left to increase or decrease the volume</string>
+    <string name="tutorial_message_content_description">Tutorial message</string>
+    <string name="start">Start</string>
+    <string name="app_logo_content_description">App logo</string>
+    <string name="usage_instructions_headline_content_description">Usage Instructions</string>
+    <string name="stop">Stop</string>
+    <string name="distance_text_view_start_text">Click Start</string>
+    <string name="launch_app">Launch App</string>
+    <string name="tts_upper_limit_distance">More than 5 meters</string>
+    <string name="tts_lower_limit_distance">Less than 2.2 meters</string>
 </resources>
