@@ -4,8 +4,6 @@ import android.Manifest
 import android.app.AlertDialog
 import android.arch.lifecycle.MutableLiveData
 import android.arch.lifecycle.Observer
-import android.arch.lifecycle.ViewModelProvider
-import android.support.v7.app.AppCompatActivity
 import android.arch.lifecycle.ViewModelProviders
 import android.content.Context
 import android.content.Context.AUDIO_SERVICE
@@ -27,17 +25,15 @@ import android.media.AudioManager
 import android.net.Uri
 import android.provider.Settings
 import android.support.annotation.StringRes
-import android.support.design.widget.BottomNavigationView
 import android.support.design.widget.Snackbar
 import android.support.v4.app.Fragment
 import android.support.v4.view.GestureDetectorCompat
-import android.support.v7.app.ActionBar
 import android.view.*
-import android.widget.SeekBar
-import kotlinx.android.synthetic.main.activity_main.*
+import android.widget.Button
+import kotlinx.android.synthetic.main.fragment_home.*
 
 
-class MainActivity : Fragment(), TextToSpeech.OnInitListener {
+class HomeFragment : Fragment(), TextToSpeech.OnInitListener {
     private var mExecutor = Executors.newCachedThreadPool()
     private lateinit var mTempCalculator: TemperatureCalculator
     private val mListener = Listener()
@@ -54,29 +50,47 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
     private lateinit var mDetector: GestureDetectorCompat
     private lateinit var mTTSVolumeSeekBarTitle: TextView
     private lateinit var mViewModel: SettingsViewModel
+    private var mTransmissionShouldStart = false
+    private lateinit var mDistanceTitleTextView: TextView
+    private lateinit var mMetersTextView: TextView
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        return inflater.inflate(R.layout.activity_main, container, false)
+        val view = inflater.inflate(R.layout.fragment_home, container, false)
+        view.setOnTouchListener{v,event ->
+            mDetector.onTouchEvent(event)
+            return@setOnTouchListener true
+        }
+
+        return view
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        mDistanceTextView = view?.findViewById(R.id.distanceTextView)!!
+        mDistanceTitleTextView = view.findViewById(R.id.distanceTitleTextView)
+        mMetersTextView = view.findViewById(R.id.metersTextView)
+        mDistanceTextView = view.findViewById(R.id.distanceTextView)!!
         mDistanceString.observe(this, object : Observer<String> {
             override fun onChanged(t: String?) {
-                mDistanceTextView.text = t ?: return
+                if (mTransmissionShouldStart) mDistanceTextView.text = t ?: return
             }
         })
-        fab.setOnClickListener {
-            speak(R.string.help_msg, addToQueue = false)
-        }
 
         setViewModelObservers()
         setFont()
         mTTSVolumeSeekBarTitle = view.findViewById(R.id.ttsVolumeSeekBarTitle)!!
         val text = getString(R.string.tts_volume_seekbar_title) + " (${stringPercent(getTTSVolume())}%)"
         mTTSVolumeSeekBarTitle.text = text
+        mTTSVolumeSeekBarTitle.visibility = if (mTransmissionShouldStart) View.VISIBLE else View.GONE
         mDetector = GestureDetectorCompat(context, MyGestureListener())
+
+        setDistanceStoppedState()
+        view.findViewById<Button>(R.id.mainStartStopButton).apply {
+            setOnClickListener {
+                mTransmissionShouldStart = !mTransmissionShouldStart
+                this.text = if (mTransmissionShouldStart) getString(R.string.stop) else getString(R.string.start)
+                refreshAppState()
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,10 +118,8 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
     }
 
     private fun setFont() {
-        val font = Typeface.createFromAsset(activity?.assets, "Scada-Regular.ttf")
-        distanceTitleTextView.typeface = font
+        val font = Typeface.createFromAsset(activity?.assets, FONT_PATH)
         ttsVolumeSeekBarTitle.typeface = font
-        //ttsVolumeInstructionsTextView.typeface = font
         metersTextView.typeface = font
     }
 
@@ -120,6 +132,33 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
     private fun speak(string: String, addToQueue: Boolean = true): Int {
         val queueMode = if (addToQueue) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH
         return mTTS.speak(string, queueMode, mTTSParams, "")
+    }
+
+    private fun setDistanceStoppedState() {
+        mDistanceTextView.text = getString(R.string.distance_text_view_start_text)
+        mDistanceTitleTextView.visibility = View.GONE
+        mMetersTextView.visibility = View.GONE
+    }
+
+    private fun refreshAppState() {
+        mainStartStopButton.text = if (mTransmissionShouldStart) getString(R.string.stop) else getString(R.string.start)
+        val visibleViews = if (mTransmissionShouldStart) View.VISIBLE else View.GONE
+        mTTSVolumeSeekBarTitle.visibility = visibleViews
+        mDistanceTextView.visibility = visibleViews
+        view?.findViewById<View>(R.id.separator)?.visibility = visibleViews
+        if (mTransmissionShouldStart) {
+            setDistanceTextStartedState()
+            initAndStartTransmissionCycle()
+        } else {
+            mExecutor.shutdownNow()
+            setDistanceStoppedState()
+        }
+    }
+
+    private fun setDistanceTextStartedState() {
+        mDistanceTextView.text = getString(R.string.loading)
+        mDistanceTitleTextView.visibility = View.VISIBLE
+        mMetersTextView.visibility = View.VISIBLE
     }
 
     private fun changeTTSVolumeBy(delta: Float) {
@@ -142,14 +181,14 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
 
     private fun getTTSVolume() = mTTSParams.getFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, TTS_INITIAL_VOLUME)
 
-    private fun checkVolume() {
+    private fun checkMediaVolume() {
         val audioManager = activity?.getSystemService(AUDIO_SERVICE) as AudioManager
         val musicVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
         val musicMaxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         if (musicVolume == musicMaxVolume) return
 
         Snackbar.make(
-            mainCoordinatorLayout,
+            mainLayout,
             R.string.increase_volume_snackbar_txt,
             Snackbar.LENGTH_LONG
         ).show()
@@ -206,7 +245,7 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
             Log.e("TTS", "Initilization Failed!")
             return
         }
-        val locale = Locale.getDefault()
+        val locale = Locale.US
         val result = mTTS.setLanguage(locale)
 
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
@@ -218,7 +257,6 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
         }
 
         mTTSInitialized = true
-        speak(R.string.help_msg)
     }
 
     private fun initMLPClassifier() {
@@ -245,7 +283,11 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
     }
 
     private fun initAndStartTransmissionCycle() {
+        if (mPermissionsDialog?.isShowing == true || !validatePermissionsGranted()) return
+
         if (mExecutor.isShutdown) mExecutor = Executors.newCachedThreadPool()
+        checkMediaVolume()
+        if (mMLPClassifier.value == null) initMLPClassifier()
         try {
             try {
                 mTransmitter.init()
@@ -261,13 +303,7 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
 
     override fun onResume() {
         Log.d("onResume", "Called")
-        if (mPermissionsDialog?.isShowing != true) {
-            val permissionsGranted = validatePermissionsGranted()
-            if (permissionsGranted) {
-                initAndStartTransmissionCycle()
-                checkVolume()
-            }
-        }
+        refreshAppState()
         super.onResume()
     }
 
@@ -292,6 +328,7 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
         val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
         with(sharedPref?.edit()) {
             this?.putFloat(TTS_VOLUME_PREFERENCES_KEY, getTTSVolume())
+            this?.putBoolean(TRANSMISSION_SHOULD_START_KEY, mTransmissionShouldStart)
             this?.apply()
         }
     }
@@ -299,9 +336,12 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
     private fun loadPreferences() {
         val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
         val ttsVolume = sharedPref?.getFloat(TTS_VOLUME_PREFERENCES_KEY, TTS_INITIAL_VOLUME)
+        val startWasPressed = sharedPref?.getBoolean(TRANSMISSION_SHOULD_START_KEY, false)
         if (ttsVolume != null) {
             setTTSVolume(ttsVolume)
         }
+
+        mTransmissionShouldStart = startWasPressed!!
     }
 
     private fun isTTSReady() = mTTSInitialized && !mTTS.isSpeaking
@@ -341,26 +381,38 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
                 peaksPrediction
             }
 
-            val distanceString = if (peaksPrediction > 0) {
-                "%.1f".format(0.1 * mlpPrediction + 0.9 * peaksPrediction)
-            } else {
-                "clear"
-            }
+            val avgPrediction = 0.1 * mlpPrediction + 0.9 * peaksPrediction
+            val distanceString = getDistanceTextToDisplay(avgPrediction.toFloat(), peaksPrediction.toFloat())
             mDistanceString.postValue(distanceString)
 
             if (transmissionCycle % 3 == 0) {
-                Log.d("transmissionCycle", "Reading out distance of cycle $transmissionCycle")
-                val ttsText = if (peaksPrediction > 0) {
-                    "$distanceString ${getString(R.string.meters)}"
-                } else {
-                    distanceString
-                }
-                speak(ttsText)
+                Log.d("transmissionCycle", "Reading out loud distance of cycle $transmissionCycle")
+                speak(getTTSDistanceText(avgPrediction.toFloat(), peaksPrediction.toFloat()))
             }
 
             submitNextTransmissionCycle()
         })
         mExecutor.submit(transmissionCycle)
+    }
+
+    private fun getTTSDistanceText(avgPrediction: Float, peaksPrediction: Float): String {
+        return if (peaksPrediction == 0f) {
+            getString(R.string.tts_upper_limit_distance)
+        } else if (avgPrediction >= 2.2) {
+            "%.1f meters".format(avgPrediction)
+        } else {
+            getString(R.string.tts_lower_limit_distance)
+        }
+    }
+
+    private fun getDistanceTextToDisplay(avgPrediction: Float, peaksPrediction: Float): String {
+        return if (peaksPrediction == 0f) {
+            "> 5.0"
+        } else if (avgPrediction >= 2.2) {
+            "%.1f".format(avgPrediction)
+        } else {
+            "< 2.2"
+        }
     }
 
     private fun showErrorMessage(errorMsg: String) {
@@ -418,7 +470,9 @@ class MainActivity : Fragment(), TextToSpeech.OnInitListener {
         const val MLP_WEIGHTS_FILE = "MLPWeights.json"
         const val MLP_BIAS_FILE = "MLPbias.json"
         const val TTS_VOLUME_PREFERENCES_KEY = "tts_volume"
+        const val TRANSMISSION_SHOULD_START_KEY = "transmission_start"
         const val TTS_INCREMENT_DELTA = 0.1f
         const val TTS_DECREMENT_DELTA = -0.1f
+        const val FONT_PATH = "Scada-Regular.ttf"
     }
 }

@@ -9,7 +9,7 @@ import kotlin.math.*
 class Transmitter {
 
     companion object {
-        val PLAYER_BUFFER_SIZE = ceil(MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE).toInt()
+        val PLAYER_BUFFER_SIZE = ceil(HomeFragment.CHIRP_DURATION * HomeFragment.SAMPLE_RATE).toInt()
     }
 
     private lateinit var mAudioPlayer: AudioTrack
@@ -34,7 +34,7 @@ class Transmitter {
             .setAudioFormat(
                 AudioFormat.Builder()
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(MainActivity.SAMPLE_RATE)
+                    .setSampleRate(HomeFragment.SAMPLE_RATE)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build()
             )
@@ -48,10 +48,10 @@ class Transmitter {
 
         mPlayerBuffer =
             chirp(
-                MainActivity.MIN_CHIRP_FREQ,
-                MainActivity.MAX_CHIRP_FREQ,
-                MainActivity.CHIRP_DURATION,
-                MainActivity.SAMPLE_RATE.toDouble()
+                HomeFragment.MIN_CHIRP_FREQ,
+                HomeFragment.MAX_CHIRP_FREQ,
+                HomeFragment.CHIRP_DURATION,
+                HomeFragment.SAMPLE_RATE.toDouble()
             )
                 .mapIndexed { i, d -> hanningWindow(i, d) }
                 .map { (it * Short.MAX_VALUE).toShort() }.toShortArray()

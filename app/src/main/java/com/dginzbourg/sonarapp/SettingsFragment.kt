@@ -3,20 +3,21 @@ package com.dginzbourg.sonarapp
 import android.app.AlertDialog
 import android.arch.lifecycle.ViewModelProviders
 import android.os.Bundle
+import android.support.design.widget.BottomNavigationView
 import android.support.v4.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.content.DialogInterface
+import kotlinx.android.synthetic.main.fragment_settings.*
 
 
+class SettingsFragment : Fragment() {
 
-class Settings : Fragment() {
-
+    val TAG = "SettingsFragment"
     private lateinit var viewModel: SettingsViewModel
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        return inflater.inflate(R.layout.settings, container, false)
+        return inflater.inflate(R.layout.fragment_settings, container, false)
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -26,37 +27,51 @@ class Settings : Fragment() {
     }
 
     private fun initializeButtons() {
-        initializeSpeechSpeed()
-        initializeSpeechVolume()
+        initializeSpeechSpeedButton()
+        initializeSpeechVolumeButton()
+        initializeStartTutorialButton()
     }
 
-    private fun initializeSpeechSpeed() {
-        val speeds = arrayOf("slow", "medium", "fast")
+    private fun initializeSpeechSpeedButton() {
+        tts_speed_button.setOnClickListener {
+            val speeds = arrayOf("slow", "medium", "fast")
 
-        val builder = AlertDialog.Builder(activity)
-        builder.setTitle("Set speech speed")
-        builder.setItems(speeds) { dialog, which ->
-            when (which) {
-                1 -> viewModel.updateTTSSpeed(0.5f)
-                2 -> viewModel.updateTTSSpeed(1.0f)
-                3 -> viewModel.updateTTSSpeed(2.0f)
-            }
+            val builder = AlertDialog.Builder(activity)
+                .setTitle("Set speech speed")
+                .setCancelable(false)
+                .setItems(speeds) { _, which ->
+                    when (which) {
+                        0 -> viewModel.updateTTSSpeed(0.5f)
+                        1 -> viewModel.updateTTSSpeed(1.0f)
+                        2 -> viewModel.updateTTSSpeed(2.0f)
+                    }
+                }
+            builder.show()
         }
-        builder.show()
+
     }
 
-    private fun initializeSpeechVolume() {
-        val speeds = arrayOf("low", "medium", "high")
+    private fun initializeSpeechVolumeButton() {
+        tts_volume_button.setOnClickListener {
+            val speeds = arrayOf("low", "medium", "high")
 
-        val builder = AlertDialog.Builder(activity)
-        builder.setTitle("Set speech volume")
-        builder.setItems(speeds) { dialog, which ->
-            when (which) {
-                1 -> viewModel.updateTTSVolume(0.2f)
-                2 -> viewModel.updateTTSVolume(0.5f)
-                3 -> viewModel.updateTTSVolume(1.0f)
-            }
+            val builder = AlertDialog.Builder(activity)
+                .setTitle("Set speech volume")
+                .setCancelable(false)
+                .setItems(speeds) { _, which ->
+                    when (which) {
+                        0 -> viewModel.updateTTSVolume(0.2f)
+                        1 -> viewModel.updateTTSVolume(0.5f)
+                        2 -> viewModel.updateTTSVolume(1.0f)
+                    }
+                }
+            builder.show()
         }
-        builder.show()
+    }
+
+    private fun initializeStartTutorialButton() {
+        tutorial_button.setOnClickListener {
+            (activity as BaseActivity).startTutorial()
+        }
     }
 }
