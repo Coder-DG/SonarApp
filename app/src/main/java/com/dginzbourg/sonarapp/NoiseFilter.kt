@@ -4,7 +4,6 @@ import org.apache.commons.math3.complex.Complex
 import org.jtransforms.fft.DoubleFFT_1D
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 class NoiseFilter {
     companion object {
@@ -19,10 +18,10 @@ class NoiseFilter {
         val chirpMiddle = recordedBuffer.indexOfFirst { it == recordedBuffer.max() && it > RECORDING_NOISE_THRESHOLD }
         if (chirpMiddle == -1) return null
 
-        val chirpStart = max(chirpMiddle - MainActivity.SAMPLE_RATE * MainActivity.CHIRP_DURATION * 0.5, 0.0)
+        val chirpStart = max(chirpMiddle - HomeFragment.SAMPLE_RATE * HomeFragment.CHIRP_DURATION * 0.5, 0.0)
         val firstSampleIndex = chirpStart.toInt()
 
-        val n = min(recordedBuffer.size - firstSampleIndex, MainActivity.RECORDING_CUT_OFF)
+        val n = min(recordedBuffer.size - firstSampleIndex, HomeFragment.RECORDING_CUT_OFF)
         if (n < pulseBuffer.size) return null
 
         // TODO: Check when is the tranmission too close to the end of the recording and return null.

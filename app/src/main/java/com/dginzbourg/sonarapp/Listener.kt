@@ -7,7 +7,7 @@ import android.util.Log
 
 class Listener {
     lateinit var mAudioRecorder: AudioRecord
-    var mRecorderBuffer = ShortArray(MainActivity.RECORDING_SAMPLES)
+    var mRecorderBuffer = ShortArray(HomeFragment.RECORDING_SAMPLES)
 
 
     fun listen() {
@@ -24,13 +24,13 @@ class Listener {
             .setAudioFormat(
                 AudioFormat.Builder()
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(MainActivity.SAMPLE_RATE)
+                    .setSampleRate(HomeFragment.SAMPLE_RATE)
                     .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
                     .build()
             )
-            .setBufferSizeInBytes(MainActivity.RECORDING_SAMPLES * 2)
+            .setBufferSizeInBytes(HomeFragment.RECORDING_SAMPLES * 2)
             .build()
-        Log.d("Listener.init", "Record buffer size is ${MainActivity.RECORDING_SAMPLES}")
+        Log.d("Listener.init", "Record buffer size is ${HomeFragment.RECORDING_SAMPLES}")
         if (mAudioRecorder.state != AudioRecord.STATE_INITIALIZED) {
             throw SonarException("The audio recorder was unable to initialize.")
         }

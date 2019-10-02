@@ -18,7 +18,7 @@ class DistanceAnalyzer {
         soundSpeed: Double
     ): Double? {
         // todo change: width of peak
-        val peakWidth = MainActivity.CHIRP_DURATION * MainActivity.SAMPLE_RATE
+        val peakWidth = HomeFragment.CHIRP_DURATION * HomeFragment.SAMPLE_RATE
         // find maximum peak and assume it is the transmitted peak
         val ccMax = correlation.max() ?: return null
         val transmittedPeakIndex = correlation.indexOf(ccMax)
@@ -44,7 +44,7 @@ class DistanceAnalyzer {
             return  0.0
         }
 
-        val time = (returnPeakIndex - transmittedPeakIndex) * (1.0 / MainActivity.SAMPLE_RATE)
+        val time = (returnPeakIndex - transmittedPeakIndex) * (1.0 / HomeFragment.SAMPLE_RATE)
         return soundSpeed * time / 2
     }
 }

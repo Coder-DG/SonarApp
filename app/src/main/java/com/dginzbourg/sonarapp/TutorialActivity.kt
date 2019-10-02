@@ -12,9 +12,9 @@ class TutorialActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_tutorial)
 
-        if (shouldSkipActivity()) startMainActivity()
+        if (shouldSkipActivity()) startBaseActivity()
 
-        findViewById<Button>(R.id.tutorialStartButton).setOnClickListener { startMainActivity() }
+        findViewById<Button>(R.id.tutorialStartButton).setOnClickListener { startBaseActivity() }
     }
 
     private fun shouldSkipActivity(): Boolean {
@@ -30,9 +30,9 @@ class TutorialActivity : AppCompatActivity() {
         }
     }
 
-    private fun startMainActivity() {
+    private fun startBaseActivity() {
         saveVisitedTutorial()
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, BaseActivity::class.java)
         startActivity(intent)
         finish()
     }
